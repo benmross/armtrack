@@ -27,7 +27,10 @@ def ensure_model() -> Path:
 class HandDetector:
     def __init__(self, num_hands: int = 2, min_conf: float = 0.5):
         opts = vision.HandLandmarkerOptions(
-            base_options=mpt.BaseOptions(model_asset_path=str(ensure_model())),
+            # CPU explicitly: on macOS the default reaches for a Metal GPU
+            # service the Python package never starts, and aborts the process
+            base_options=mpt.BaseOptions(model_asset_path=str(ensure_model()),
+                                         delegate=mpt.BaseOptions.Delegate.CPU),
             running_mode=vision.RunningMode.VIDEO,
             num_hands=num_hands,
             min_hand_detection_confidence=min_conf,
