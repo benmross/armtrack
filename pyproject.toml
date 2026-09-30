@@ -1,0 +1,26 @@
+[project]
+name = "stereo-hand"
+version = "0.1.0"
+description = "Track a hand in 3-D from two ordinary cameras"
+readme = "README.md"
+authors = [
+    { name = "Ben Ross", email = "ben.m.ross08@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "mediapipe>=0.10.14",
+    "numpy>=2.5.3",
+    "opencv-python>=4.9",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[project.scripts]
+stereo-hand = "stereo_hand:main"
