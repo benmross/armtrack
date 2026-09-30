@@ -28,7 +28,7 @@ def _side_by_side(f1: np.ndarray, f2: np.ndarray, w: int = 560) -> np.ndarray:
     return np.hstack([a, b])
 
 
-def _still(prev, cur, tol: float = 1.5) -> bool:
+def _still(prev, cur, tol: float) -> bool:
     """Is the board in the same place as last frame? The cameras are not
     synchronised, so a pair is only trustworthy if the board was not moving."""
     if prev is None or cur is None:
@@ -66,14 +66,17 @@ def calibrate(cam1: str, cam2: str, square_mm: float, out: str, target: int = 20
         if f1 is None or f2 is None:
             break
         r1, r2 = det.detect(f1), det.detect(f2)
-        st1, st2 = _still(prev1, r1), _still(prev2, r2)
+        # a hand-held board always shakes a little; allow ~0.4% of the frame width
+        st1 = _still(prev1, r1, 0.004 * s1.size[0])
+        st2 = _still(prev2, r2, 0.004 * s2.size[0])
         prev1, prev2 = r1, r2
         now = time.time()
         k = cv2.waitKey(1) & 0xFF
         force = k == ord("c")
         if (auto or force) and now - last_t > 0.6:
             took = False
-            if r1 and r2 and (force or (st1 and st2 and (_moved(last1, r1) or _moved(last2, r2)))):
+            shared = len(np.intersect1d(r1[0], r2[0])) if (r1 and r2) else 0
+            if shared >= 6 and (force or (st1 and st2 and (_moved(last1, r1) or _moved(last2, r2)))):
                 pairs.append((r1, r2))
                 mono1.append(r1)
                 mono2.append(r2)
@@ -91,13 +94,22 @@ def calibrate(cam1: str, cam2: str, square_mm: float, out: str, target: int = 20
                             cv2.circle(cov, tuple(map(int, p)), 6, (0, 90, 0), -1)
         v1 = cv2.addWeighted(f1, 1.0, cov1, 1.0, 0)
         v2 = cv2.addWeighted(f2, 1.0, cov2, 1.0, 0)
-        for v, r in ((v1, r1), (v2, r2)):
+        for v, r, st in ((v1, r1, st1), (v2, r2, st2)):
             if r:
                 for p in r[1]:
                     cv2.circle(v, tuple(map(int, p)), 4, (0, 255, 255), -1)
+            # say what is blocking a capture, big enough to read from arm's length
+            label, color = (("NO BOARD", (0, 0, 255)) if not r else
+                            (f"{len(r[0])} corners, MOVING", (0, 200, 255)) if not st else
+                            (f"{len(r[0])} corners, still", (0, 220, 0)))
+            scale = v.shape[1] / 1280
+            cv2.rectangle(v, (0, v.shape[0] - int(70 * scale)), (v.shape[1], v.shape[0]), (0, 0, 0), -1)
+            cv2.putText(v, label, (int(15 * scale), v.shape[0] - int(20 * scale)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.5 * scale, color, max(2, int(3 * scale)))
         view = _side_by_side(v1, v2)
-        msg = (f"pairs {len(pairs)}/{target}   lens views {len(mono1)} / {len(mono2)}   "
-               f"auto {'on' if auto else 'PAUSED'}   Enter = solve")
+        both = "both see it" if (r1 and r2 and len(np.intersect1d(r1[0], r2[0])) >= 6) else "need both to see it"
+        msg = (f"pairs {len(pairs)}/{target} ({both})   lens views {len(mono1)} / {len(mono2)}   "
+               f"auto {'on' if auto else 'PAUSED'}   Enter solves once pairs >= 8")
         cv2.rectangle(view, (0, 0), (view.shape[1], 30), (0, 0, 0), -1)
         cv2.putText(view, msg, (10, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
         cv2.imshow("stereo-hand calibrate  (left: cam1, right: cam2; green = covered)", view)
@@ -106,7 +118,9 @@ def calibrate(cam1: str, cam2: str, square_mm: float, out: str, target: int = 20
         if k == ord("q") or k == 27:
             print("quit without saving")
             return
-        if k in (13, 10) or len(pairs) >= target * 2:
+        if k in (13, 10) and len(pairs) < 5:
+            print(f"only {len(pairs)} pairs; need at least 5 (8+ is better). Keep going.")
+        elif k in (13, 10) or len(pairs) >= target * 2:
             break
     cv2.destroyAllWindows()
     cal = solve(det, mono1, mono2, pairs, s1.size, s2.size, square_mm)
