@@ -16,6 +16,8 @@ def main() -> None:
     b = sub.add_parser("board", help="write the calibration board as a printable PNG")
     b.add_argument("--square-mm", type=float, default=35.0)
     b.add_argument("--out", default="board.png")
+    b.add_argument("--screen", metavar="WxH",
+                   help="fill a screen of this many pixels instead, e.g. 2556x1179 for an iPhone in landscape")
 
     for name in ("calibrate", "track"):
         s = sub.add_parser(name)
@@ -49,7 +51,13 @@ def main() -> None:
             print(f"index {i}: {f.shape[1]}x{f.shape[0]}")
         preview([i for i, _ in found])
     elif a.cmd == "board":
-        from .board import render
+        from .board import render, render_screen
+        if a.screen:
+            w, h = (int(v) for v in a.screen.lower().split("x"))
+            render_screen(a.out, w, h)
+            print(f"wrote {a.out}. Show it full screen at maximum brightness, measure one square "
+                  "on the screen with a ruler, and pass that to --square-mm.")
+            return
         render(a.out, a.square_mm)
         print(f"wrote {a.out}. Print at 100% scale (no 'fit to page'), then measure one square "
               "with a ruler and pass that to --square-mm.")

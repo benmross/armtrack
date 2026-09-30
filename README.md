@@ -59,8 +59,15 @@ uv run stereo-hand listen                   # in a second terminal: what an arm 
 ```
 
 `--square-mm` is the side of one square **as measured with a ruler** on your
-print; printers scale. The board can also be shown on any screen that is not
-one of the two cameras (an iPad, a monitor); measure it on that screen.
+print; printers scale.
+
+**No printer?** Show the board on any screen that is not one of the two
+cameras. `stereo-hand board --screen 2556x1179 --out board-phone.png` fills a
+screen of that many pixels (that one is an iPhone Pro in landscape; use the
+device's own resolution). Open it full screen at full brightness, measure a
+square on the glass, and pass that as `--square-mm`. A laptop or tablet is
+better than a phone: bigger squares detect from further away. Keep glare off
+the screen, and expect to hold a phone closer, 25 to 50 cm from each camera.
 
 **Calibration tips.** Aim for a stereo error under 1 px. Hold the board still
 for a beat at each pose; tilt it 30 to 45 degrees in different directions;
