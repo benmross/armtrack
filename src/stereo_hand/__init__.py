@@ -40,16 +40,14 @@ def main() -> None:
 
     a = p.parse_args()
     if a.cmd == "cameras":
-        import cv2
-        from .cameras import contact_sheet, probe
+        from .cameras import preview, probe
         found = probe()
         if not found:
             raise SystemExit("No cameras opened. On macOS, give your terminal camera access in "
                              "System Settings > Privacy & Security > Camera.")
         for i, f in found:
             print(f"index {i}: {f.shape[1]}x{f.shape[0]}")
-        cv2.imshow("cameras (any key to close)", contact_sheet(found))
-        cv2.waitKey(0)
+        preview([i for i, _ in found])
     elif a.cmd == "board":
         from .board import render
         render(a.out, a.square_mm)

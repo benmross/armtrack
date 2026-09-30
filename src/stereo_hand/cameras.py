@@ -91,12 +91,13 @@ class Source:
 
 
 def probe(max_index: int = 6) -> list[tuple[int, np.ndarray]]:
-    """Open every camera index that works and grab one frame from each."""
+    """Open every camera index that works and grab one frame from each.
+    Indices are contiguous, so stop at the first one that does not open."""
     found = []
     for i in range(max_index):
         cap = cv2.VideoCapture(i, cv2.CAP_AVFOUNDATION) if sys.platform == "darwin" else cv2.VideoCapture(i)
         if not cap.isOpened():
-            continue
+            break
         frame = None
         for _ in range(20):  # the first frames from some cameras are black
             ok, f = cap.read()
@@ -120,3 +121,18 @@ def contact_sheet(frames: list[tuple[int, np.ndarray]], tile_w: int = 480) -> np
     h = max(t.shape[0] for t in tiles)
     tiles = [cv2.copyMakeBorder(t, 0, h - t.shape[0], 0, 4, cv2.BORDER_CONSTANT) for t in tiles]
     return np.hstack(tiles)
+
+
+def preview(indices: list[int], width: int = 1280, height: int = 720) -> None:
+    """Live view of every camera, labelled with its index, until a key is pressed."""
+    sources = [(i, Source(i, width, height)) for i in indices]
+    try:
+        while True:
+            frames = [(i, s.read()[0]) for i, s in sources]
+            cv2.imshow("cameras: live (any key to close)", contact_sheet([(i, f) for i, f in frames if f is not None]))
+            if cv2.waitKey(1) & 0xFF != 255:
+                break
+    finally:
+        for _, s in sources:
+            s.close()
+        cv2.destroyAllWindows()
