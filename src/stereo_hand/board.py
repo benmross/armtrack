@@ -36,7 +36,7 @@ def render(path: str, square_mm: float = 35.0, dpi: int = 300) -> None:
 
 def render_screen(path: str, width: int = 2556, height: int = 1179) -> None:
     """The board filling a screen of the given pixel size, for showing on a
-    phone, tablet or laptop instead of printing. Default: iPhone 15/16 Pro in
+    phone, tablet or laptop instead of printing. Default: iPhone 15, 15 Pro or 16 in
     landscape. Its physical square size must be measured on the screen."""
     board = make_board(10.0)  # physical size is irrelevant to the image
     margin = int(min(width, height) * 0.04)

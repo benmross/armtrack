@@ -17,7 +17,7 @@ def main() -> None:
     b.add_argument("--square-mm", type=float, default=35.0)
     b.add_argument("--out", default="board.png")
     b.add_argument("--screen", metavar="WxH",
-                   help="fill a screen of this many pixels instead, e.g. 2556x1179 for an iPhone in landscape")
+                   help="fill a screen of this many pixels instead, e.g. 2556x1179 for an iPhone 16 in landscape")
 
     for name in ("calibrate", "track"):
         s = sub.add_parser(name)

@@ -63,7 +63,7 @@ print; printers scale.
 
 **No printer?** Show the board on any screen that is not one of the two
 cameras. `stereo-hand board --screen 2556x1179 --out board-phone.png` fills a
-screen of that many pixels (that one is an iPhone Pro in landscape; use the
+screen of that many pixels (that one is an iPhone 15, 15 Pro or 16 in landscape; use the
 device's own resolution). Open it full screen at full brightness, measure a
 square on the glass, and pass that as `--square-mm`. A laptop or tablet is
 better than a phone: bigger squares detect from further away. Keep glare off
