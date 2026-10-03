@@ -23,7 +23,7 @@ def _msg(pos, yaw_deg=0.0, pitch_deg=0.0, engaged=True, grip=0):
     return {"pos": list(pos), "rot": rot.tolist(), "engaged": engaged, "grip": grip, "tracking": "normal"}
 
 
-def _run(pa, msgs, t0=0.0, steps=60):
+def _run(pa, msgs, t0=0.0, steps=420):
     t = t0
     for m in msgs:
         for _ in range(steps):

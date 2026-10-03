@@ -29,7 +29,8 @@ from .calib import Calibration, board_pose, desk_frame
 from .cameras import Source
 from .geometry import MIDDLE_MCP, WRIST, OneEuro, hand_pose
 from .hands import HandDetector
-from .arm import ArmController, ArmView, arm_text
+from .arm import ArmController
+from .viewer import Viewer
 from .viz import View3D, draw_2d
 
 
@@ -83,7 +84,7 @@ def run(cam: str, calib: str | None = "calib.json", calib_cam: int = 2, hfov: fl
     K, d, lens_note = intrinsics(src.size, calib, calib_cam, hfov)
     print(lens_note)
     print(f"hand size: {f'{palm_mm:g} mm palm (measured)' if palm_mm else 'average hand assumed; pass --palm-mm for better depth'}")
-    print("Keys: z engage the arm (and zero), x release it, j/l/i/k turn the arm view, b set desk frame from the board lying flat, a/d/w/s rotate view, +/- zoom, q quit.")
+    print("Keys: z engage the arm (and zero), x release it, the arm is in the browser, b set desk frame from the board lying flat, a/d/w/s rotate view, +/- zoom, q quit.")
     det = HandDetector(1)
     solver = MonoSolver(K, d, palm_mm)
     filt = OneEuro()
@@ -94,7 +95,7 @@ def run(cam: str, calib: str | None = "calib.json", calib_cam: int = 2, hfov: fl
     board = Detector(12.0)  # the phone board; a wrong size only shifts the origin, not the axes
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) if udp else None
     dest = (udp.rsplit(":", 1)[0], int(udp.rsplit(":", 1)[1])) if udp else None
-    arm, arm_view = ArmController(frame="camera"), ArmView()
+    arm, arm_view = ArmController(frame="camera"), Viewer()
     fps, t_prev = 0.0, time.time()
     while True:
         frame, t = src.read()
@@ -139,10 +140,9 @@ def run(cam: str, calib: str | None = "calib.json", calib_cam: int = 2, hfov: fl
         draw_2d(v, [(h[0], h[1]) for h in hands])
         cv2.imshow("stereo-hand mono: camera", cv2.resize(v, (800, int(v.shape[0] * 800 / v.shape[1]))))
         cv2.imshow("stereo-hand mono: 3D", view.render(worlds, text))
-        cv2.imshow("rover arm", arm_view.render(arm.q, arm.g, arm.target, arm_text(arm_state)))
+        arm_view.publish({**arm_state, "status": ("tracking: " + "one camera" + ("" if arm_state["engaged"] else ", press z to engage"))})
         key = cv2.waitKey(1) & 0xFF
         view.key(key)
-        arm_view.key(key)
         if key == ord("x"):
             arm.release()
         if key in (ord("q"), 27):

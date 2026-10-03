@@ -17,10 +17,10 @@ import math
 import socket
 import time
 
-import cv2
 import numpy as np
 
-from .arm import ArmController, ArmView, arm_text
+from .arm import ArmController
+from .viewer import Viewer
 
 
 def phone_pose(msg: dict) -> dict:
@@ -98,47 +98,46 @@ class PhoneArm:
         return self.arm.update(self.pose if fresh else None, now)
 
 
-def run(port: int = 5006, udp: str | None = None) -> None:
+def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None:
     rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     rx.bind(("0.0.0.0", port))
-    rx.setblocking(False)
+    rx.settimeout(1 / 120)
     out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) if udp else None
     dest = (udp.rsplit(":", 1)[0], int(udp.rsplit(":", 1)[1])) if udp else None
     ips = local_ips()
     print(f"Listening for Arm Pilot on UDP {port}. Type one of these into the app: {', '.join(ips) or '(no network?)'}")
-    print("Keys: j/l/i/k turn the view, q quit.")
+    viewer = Viewer(view_port)
+    print("Ctrl-C to stop.")
     pa = PhoneArm()
-    view = ArmView()
-    rate, n, t_rate = 0, 0, time.time()
-    while True:
-        now = time.time()
+    rate, n, t_rate, t_pub = 0, 0, time.time(), 0.0
+    try:
         while True:
             try:
                 data = rx.recv(4096)
-            except BlockingIOError:
-                break
-            try:
-                pa.feed(json.loads(data), now)
+                pa.feed(json.loads(data), time.time())
                 n += 1
+            except (TimeoutError, socket.timeout):
+                pass
             except (ValueError, KeyError):
                 continue
-        if now - t_rate >= 1:
-            rate, n, t_rate = n, 0, now
-        st = pa.tick(now)
-        if out:
-            out.sendto(json.dumps({"t": now, "source": "phone", "arm": st}).encode(), dest)
-        if pa.msg is None:
-            head = f"waiting for the phone: enter {ips[0] if ips else 'this Mac IP'} port {port} in Arm Pilot"
-        elif now - pa.last_rx > 0.3:
-            head = "phone went quiet: arm holding"
-        else:
-            head = f"phone {rate}/s   tracking {pa.msg.get('tracking')}"
-        text = [head] + arm_text(st, "lift your thumb to let go")
-        if st["engaged"] is False:
-            text[1] = "hold your thumb on the phone to move the arm"
-        cv2.imshow("rover arm", view.render(pa.arm.q, pa.arm.g, pa.arm.target, text))
-        key = cv2.waitKey(10) & 0xFF
-        view.key(key)
-        if key in (ord("q"), 27):
-            break
-    cv2.destroyAllWindows()
+            now = time.time()
+            if now - t_rate >= 1:
+                rate, n, t_rate = n, 0, now
+            if now - t_pub < 1 / 60:
+                continue
+            t_pub = now
+            st = pa.tick(now)
+            if out:
+                out.sendto(json.dumps({"t": now, "source": "phone", "arm": st}).encode(), dest)
+            if pa.msg is None:
+                status = f"waiting for the phone: enter {ips[0] if ips else 'this Mac IP'}, port {port}, in Arm Pilot"
+            elif now - pa.last_rx > 0.3:
+                status = "phone went quiet: arm holding"
+            else:
+                hint = "" if st["engaged"] else ", hold your thumb on the phone to move"
+                status = f"phone {rate}/s, tracking {pa.msg.get('tracking')}{hint}"
+            viewer.publish({**st, "status": status})
+    except KeyboardInterrupt:
+        pass
+    finally:
+        viewer.close()

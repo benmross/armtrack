@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loop rover arm</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --fg: #e9e9ec; --dim: #9a9ca3; --card: rgba(18, 19, 22, 0.78); --line: rgba(255,255,255,0.08);
+          --green: #3ccf6e; --amber: #f2a93b; --red: #e5484d; }
+  html, body { margin: 0; height: 100%; background: #101114; color: var(--fg);
+               font: 13px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif; overflow: hidden; }
+  canvas { display: block; }
+  .card { position: absolute; background: var(--card); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+          border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  #hud { top: 14px; left: 14px; width: 300px; }
+  #hud h1 { margin: 0 0 2px; font-size: 15px; font-weight: 650; letter-spacing: 0.01em; }
+  #status { color: var(--dim); font-size: 12px; min-height: 16px; }
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-weight: 650; font-size: 11px;
+          letter-spacing: 0.06em; margin: 8px 6px 4px 0; }
+  .on { background: rgba(60, 207, 110, 0.18); color: var(--green); }
+  .off { background: rgba(255,255,255,0.08); color: var(--dim); }
+  .warn { background: rgba(242, 169, 59, 0.18); color: var(--amber); }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  td { padding: 3px 0; vertical-align: middle; }
+  td.name { color: var(--dim); width: 86px; }
+  td.val { text-align: right; width: 58px; font-variant-numeric: tabular-nums; }
+  .bar { position: relative; height: 6px; background: rgba(255,255,255,0.07); border-radius: 3px; margin: 0 8px; }
+  .bar i { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: var(--fg); border-radius: 2px; }
+  .bar b { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--amber); opacity: 0.7; }
+  .sub { color: var(--dim); font-size: 11px; margin-top: 8px; }
+  #help { bottom: 14px; left: 14px; color: var(--dim); font-size: 12px; padding: 8px 12px; }
+  #views { bottom: 14px; right: 14px; display: flex; gap: 6px; padding: 8px; }
+  button { background: rgba(255,255,255,0.08); color: var(--fg); border: 1px solid var(--line); border-radius: 8px;
+           padding: 6px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+  button:hover { background: rgba(255,255,255,0.14); }
+  button.active { background: rgba(60, 207, 110, 0.22); border-color: rgba(60, 207, 110, 0.5); }
+  #wait { top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; font-size: 14px; }
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/controls/OrbitControls.js": "./vendor/OrbitControls.js",
+    "three/addons/environments/RoomEnvironment.js": "./vendor/RoomEnvironment.js"
+} }
+</script>
+</head>
+<body>
+<div id="hud" class="card">
+  <h1>Loop rover arm</h1>
+  <div id="status">connecting</div>
+  <span id="engaged" class="pill off">HOLDING</span><span id="reach" class="pill warn" style="display:none">OUT OF REACH</span>
+  <table id="joints"></table>
+  <div class="sub" id="lag"></div>
+</div>
+<div id="help" class="card">Drag to orbit &nbsp;·&nbsp; right-drag or shift-drag to pan &nbsp;·&nbsp; scroll to zoom</div>
+<div id="views" class="card">
+  <button data-view="iso">Reset</button><button data-view="side">Side</button>
+  <button data-view="front">Front</button><button data-view="top">Top</button>
+  <button id="follow">Follow gripper</button><button id="trail">Trail</button>
+</div>
+<div id="wait" class="card">Waiting for the tracker&hellip;</div>
+<script type="module" src="./rover.js"></script>
+</body>
+</html>

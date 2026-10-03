@@ -124,17 +124,60 @@ zooms on its own, which changes the lens under the solver's feet.
 
 ## The rover arm
 
-Both `track` and `mono` open a **rover arm** window: a model of the Loop
-rover's arm (turret, actuator-driven upper arm, forearm, pitch and roll wrist,
-two-finger gripper) on its six-wheeled chassis, driven by your hand. Press `z` to
-engage. The gripper tip then moves 2.5 times your hand's displacement, the wrist
-follows your hand's pitch and roll, and the fingers open and close with your
-grip. Press `x` to let go: the arm holds, and engaging again carries on from
-where it is. Joints are rate-limited (120 degrees per second) like real motors,
-so a tracking glitch cannot fling the arm. `j` `l` `i` `k` turn the view. The
-joint angles go out in every UDP packet under `arm`, ready for a real arm
-controller. Link lengths are estimated from a photo; put the real ones in
-`ArmSpec` in `arm.py`.
+Every mode opens a **3-D view in the browser** (http://localhost:8765, opened
+for you): the Loop rover on its rocker-bogie suspension with the arm (turret,
+shoulder motors, actuator-driven upper arm, forearm, pitch and roll wrist,
+wrist camera, two-finger gripper), lit and shadowed. Drag to orbit,
+right-drag or shift-drag to pan, scroll to zoom; buttons jump to side, front
+and top views, follow the gripper, or draw its trail. Anyone on the network
+can open the same page, so it can go on a projector.
+
+`uv run stereo-hand demo` runs a scripted pick and place with no tracker, for
+showing the arm on its own.
+
+The control path, in `arm.py`:
+
+- **Target.** Your motion since engaging, scaled 2.5x, moves a target for the
+  gripper tip plus a wrist pitch and roll. Targets are kept above the ground,
+  out of the chassis and mast, and within reach.
+- **IK.** A damped least-squares solver, warm-started from the last answer
+  and clamped to joint limits every step, so the arm never flips between
+  elbow configurations, stays stable at full stretch and over its base, and
+  settles at the nearest pose when a target is out of reach.
+- **Motion.** Each joint has its own speed and acceleration limit (the
+  shoulder actuator is slowest at 30 deg/s, the wrist fastest), and brakes in
+  time to stop on its goal, so the arm lags a fast hand the way the real one
+  would and a tracking glitch cannot fling it. The gripper takes 0.8 s end to
+  end. The view shows the commanded target as a green ghost and the joint
+  speeds as amber bars.
+
+Link lengths, limits and speeds are estimates in `ArmSpec`; replace them with
+the team's real numbers. The joint angles go out in every UDP packet under
+`arm`.
+
+## Phone as the controller (recommended)
+
+Camera tracking of a bare hand is jittery in depth. Holding an iPhone avoids
+that: ARKit tracks the phone's position and rotation by fusing its camera with
+its motion sensors, so it neither drifts like integrated accelerometer data
+nor jitters like a hand's apparent size.
+
+1. On the Mac: `uv run stereo-hand phone`. It prints this Mac's IP address and
+   opens the 3-D view.
+2. Open `ios/ArmPilot/ArmPilot.xcodeproj` in Xcode, plug in the iPhone, pick it
+   as the run destination, and press Run. (First time: Developer Mode on the
+   phone, and trust the developer.)
+3. In Arm Pilot, type the Mac's IP. Phone and Mac must be able to reach each
+   other: the same home Wi-Fi, the phone's hotspot, or Tailscale on both.
+   Large shared networks (campus, hotel) usually block device-to-device
+   traffic.
+4. Hold the phone screen-up with the top edge pointing where the arm should
+   reach. **Hold your thumb on the big pad** to move the arm and lift it to let
+   go (the arm holds). **Tap** to open or close the gripper. Forward is
+   wherever the phone points when your thumb goes down.
+
+The back camera needs to see an ordinary room for tracking to stay "normal";
+the app shows the tracking state.
 
 ## Tests
 

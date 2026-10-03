@@ -16,7 +16,8 @@ from .calib import Calibration, board_pose, desk_frame, solve
 from .cameras import Source
 from .geometry import OneEuro, hand_pose, match_hands, to_world
 from .hands import HandDetector
-from .arm import ArmController, ArmView, arm_text
+from .arm import ArmController
+from .viewer import Viewer
 from .viz import View3D, draw_2d
 
 
@@ -152,9 +153,9 @@ def track(cam1: str, cam2: str, calib_path: str, udp: str | None = None, hand: s
     zero: np.ndarray | None = None
     rec = None
     det_board = Detector(cal.square_mm)
-    arm, arm_view = ArmController(frame="desk" if desk else "camera"), ArmView()
+    arm, arm_view = ArmController(frame="desk" if desk else "camera"), Viewer()
     fps, t_prev = 0.0, time.time()
-    print("Keys: z engage the arm (and zero), x release it, j/l/i/k turn the arm view, b set desk frame from the board lying flat, r record, "
+    print("Keys: z engage the arm (and zero), x release it, the arm is in the browser, b set desk frame from the board lying flat, r record, "
           "a/d/w/s rotate view, +/- zoom, q quit.")
     while True:
         f1, t1 = s1.read()
@@ -203,12 +204,11 @@ def track(cam1: str, cam2: str, calib_path: str, udp: str | None = None, hand: s
         draw_2d(v2, h2)
         cv2.imshow("stereo-hand cameras  (left: cam1, right: cam2)", _side_by_side(v1, v2))
         cv2.imshow("stereo-hand 3D", view.render(worlds, text))
-        cv2.imshow("rover arm", arm_view.render(arm.q, arm.g, arm.target, arm_text(arm_state)))
+        arm_view.publish({**arm_state, "status": ("tracking: " + "stereo cameras" + ("" if arm_state["engaged"] else ", press z to engage"))})
         if rec:
             rec[0].write(f1); rec[1].write(f2)
         key = cv2.waitKey(1) & 0xFF
         view.key(key)
-        arm_view.key(key)
         if key in (ord("q"), 27):
             break
         if key == ord("x"):
