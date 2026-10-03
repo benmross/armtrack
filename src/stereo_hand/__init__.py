@@ -37,6 +37,17 @@ def main() -> None:
             s.add_argument("--hand", choices=["Left", "Right"], help="prefer this hand if two are seen")
             s.add_argument("--hands", type=int, default=2, help="max hands to look for per camera")
 
+    m = sub.add_parser("mono", help="track with one camera only (depth from apparent hand size)")
+    m.add_argument("--cam", default="1", help="camera index, video file or URL (default 1)")
+    m.add_argument("--calib", default="calib.json", help="reuse this camera's lens from a stereo calibration if present")
+    m.add_argument("--calib-cam", type=int, choices=[1, 2], default=2,
+                   help="which camera in --calib this one was (default 2, the iPhone)")
+    m.add_argument("--hfov", type=float, default=70.0, help="horizontal field of view in degrees, if no calibration")
+    m.add_argument("--palm-mm", type=float, help="your wrist crease to the base of your middle finger, in mm")
+    m.add_argument("--udp", default="127.0.0.1:5005")
+    m.add_argument("--width", type=int, default=1280)
+    m.add_argument("--height", type=int, default=720)
+
     lst = sub.add_parser("listen", help="print what track is sending, as an arm controller would receive it")
     lst.add_argument("--port", type=int, default=5005)
 
@@ -67,6 +78,9 @@ def main() -> None:
     elif a.cmd == "track":
         from .app import track
         track(a.cam1, a.cam2, a.calib, None if a.udp == "off" else a.udp, a.hand, a.width, a.height, a.hands)
+    elif a.cmd == "mono":
+        from .mono import run
+        run(a.cam, a.calib, a.calib_cam, a.hfov, a.palm_mm, None if a.udp == "off" else a.udp, a.width, a.height)
     elif a.cmd == "listen":
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(("0.0.0.0", a.port))

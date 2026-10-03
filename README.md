@@ -104,6 +104,24 @@ recalibrate.
 toward the fingers, z out of the palm. `grip_open` is 0 when pinched and 1 when
 wide open, normalised by palm size.
 
+## One camera
+
+```bash
+uv run stereo-hand mono --cam 1 --palm-mm 95
+```
+
+One camera cannot measure depth, so `mono` infers it from how big the hand
+looks. MediaPipe supplies a metric model of the hand's shape, and solvePnP
+finds where that model must sit for it to line up with the landmarks in the
+image. Left/right and up/down are about as good as stereo. Depth is only as
+good as the hand-size assumption: an unmeasured hand 10% larger than average
+reads 10% closer. `--palm-mm` (wrist crease to the base of the middle finger)
+removes most of that. Depth is also noisier, because a 1 px error in apparent
+size is a few mm at arm's length. If `calib.json` exists, its lens for that
+camera is reused (`--calib-cam`); otherwise the lens is guessed from `--hfov`.
+On a Mac, turn off Center Stage (Control Center > Video Effects): it crops and
+zooms on its own, which changes the lens under the solver's feet.
+
 ## Tests
 
 ```bash

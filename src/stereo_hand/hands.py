@@ -42,15 +42,21 @@ class HandDetector:
 
     def detect(self, frame: np.ndarray, t: float) -> list[tuple[str, np.ndarray]]:
         """Returns [(handedness label, (21,2) pixel coords)]."""
+        return [(label, px) for label, px, _ in self.detect_full(frame, t)]
+
+    def detect_full(self, frame: np.ndarray, t: float) -> list[tuple[str, np.ndarray, np.ndarray]]:
+        """Also returns MediaPipe's metric hand model: (21,3) metres around the
+        hand's own centre, the shape of the hand but not where it is."""
         ms = max(int(t * 1000), self._last_ms + 1)  # VIDEO mode needs increasing timestamps
         self._last_ms = ms
         img = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         res = self.lm.detect_for_video(img, ms)
         h, w = frame.shape[:2]
         out = []
-        for lms, hd in zip(res.hand_landmarks, res.handedness):
+        for lms, wlms, hd in zip(res.hand_landmarks, res.hand_world_landmarks, res.handedness):
             pts = np.array([[p.x * w, p.y * h] for p in lms], dtype=np.float64)
-            out.append((hd[0].category_name, pts))
+            world = np.array([[p.x, p.y, p.z] for p in wlms], dtype=np.float64)
+            out.append((hd[0].category_name, pts, world))
         return out
 
     def close(self) -> None:
