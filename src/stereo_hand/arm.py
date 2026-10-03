@@ -335,9 +335,9 @@ def _draw_wheel(self, img, hub, axis, radius, half_w):
 ArmView._draw_wheel = _draw_wheel
 
 
-def arm_text(st: dict) -> list[str]:
+def arm_text(st: dict, release: str = "x releases") -> list[str]:
     j = st["joints_deg"]
-    head = ("ENGAGED: arm follows your hand   (x releases)" if st["engaged"]
+    head = (f"ENGAGED: arm follows your hand   ({release})" if st["engaged"]
             else "press z to engage the arm")
     lines = [head,
              f"yaw {j['base_yaw']:6.1f}  shoulder {j['shoulder']:6.1f}  elbow {j['elbow']:6.1f}",

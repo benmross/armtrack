@@ -48,6 +48,10 @@ def main() -> None:
     m.add_argument("--width", type=int, default=1280)
     m.add_argument("--height", type=int, default=720)
 
+    ph = sub.add_parser("phone", help="drive the arm by moving an iPhone running Arm Pilot")
+    ph.add_argument("--port", type=int, default=5006)
+    ph.add_argument("--udp", help="also forward the arm's joint angles here, host:port")
+
     lst = sub.add_parser("listen", help="print what track is sending, as an arm controller would receive it")
     lst.add_argument("--port", type=int, default=5005)
 
@@ -81,6 +85,9 @@ def main() -> None:
     elif a.cmd == "mono":
         from .mono import run
         run(a.cam, a.calib, a.calib_cam, a.hfov, a.palm_mm, None if a.udp == "off" else a.udp, a.width, a.height)
+    elif a.cmd == "phone":
+        from .phone import run as run_phone
+        run_phone(a.port, a.udp)
     elif a.cmd == "listen":
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(("0.0.0.0", a.port))
