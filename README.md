@@ -122,6 +122,20 @@ camera is reused (`--calib-cam`); otherwise the lens is guessed from `--hfov`.
 On a Mac, turn off Center Stage (Control Center > Video Effects): it crops and
 zooms on its own, which changes the lens under the solver's feet.
 
+## The rover arm
+
+Both `track` and `mono` open a **rover arm** window: a model of the Loop
+rover's arm (turret, actuator-driven upper arm, forearm, pitch and roll wrist,
+two-finger gripper) on its six-wheeled chassis, driven by your hand. Press `z` to
+engage. The gripper tip then moves 2.5 times your hand's displacement, the wrist
+follows your hand's pitch and roll, and the fingers open and close with your
+grip. Press `x` to let go: the arm holds, and engaging again carries on from
+where it is. Joints are rate-limited (120 degrees per second) like real motors,
+so a tracking glitch cannot fling the arm. `j` `l` `i` `k` turn the view. The
+joint angles go out in every UDP packet under `arm`, ready for a real arm
+controller. Link lengths are estimated from a photo; put the real ones in
+`ArmSpec` in `arm.py`.
+
 ## Tests
 
 ```bash

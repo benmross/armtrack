@@ -29,6 +29,7 @@ from .calib import Calibration, board_pose, desk_frame
 from .cameras import Source
 from .geometry import MIDDLE_MCP, WRIST, OneEuro, hand_pose
 from .hands import HandDetector
+from .arm import ArmController, ArmView, arm_text
 from .viz import View3D, draw_2d
 
 
@@ -82,7 +83,7 @@ def run(cam: str, calib: str | None = "calib.json", calib_cam: int = 2, hfov: fl
     K, d, lens_note = intrinsics(src.size, calib, calib_cam, hfov)
     print(lens_note)
     print(f"hand size: {f'{palm_mm:g} mm palm (measured)' if palm_mm else 'average hand assumed; pass --palm-mm for better depth'}")
-    print("Keys: z zero here, b set desk frame from the board lying flat, a/d/w/s rotate view, +/- zoom, q quit.")
+    print("Keys: z engage the arm (and zero), x release it, j/l/i/k turn the arm view, b set desk frame from the board lying flat, a/d/w/s rotate view, +/- zoom, q quit.")
     det = HandDetector(1)
     solver = MonoSolver(K, d, palm_mm)
     filt = OneEuro()
@@ -93,6 +94,7 @@ def run(cam: str, calib: str | None = "calib.json", calib_cam: int = 2, hfov: fl
     board = Detector(12.0)  # the phone board; a wrong size only shifts the origin, not the axes
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) if udp else None
     dest = (udp.rsplit(":", 1)[0], int(udp.rsplit(":", 1)[1])) if udp else None
+    arm, arm_view = ArmController(frame="camera"), ArmView()
     fps, t_prev = 0.0, time.time()
     while True:
         frame, t = src.read()
@@ -100,6 +102,7 @@ def run(cam: str, calib: str | None = "calib.json", calib_cam: int = 2, hfov: fl
             break
         hands = det.detect_full(frame, t)
         worlds, text, payload = [], [], {"t": t, "hand": None}
+        pose = None
         if hands:
             label, px, wm = hands[0]
             got = solver.solve(px, wm)
@@ -124,6 +127,8 @@ def run(cam: str, calib: str | None = "calib.json", calib_cam: int = 2, hfov: fl
             solver.prev = None
         if payload["hand"] is None:
             text.append("no hand")
+        arm_state = arm.update(pose, t)
+        payload["arm"] = arm_state
         if sock:
             sock.sendto(json.dumps(payload).encode(), dest)
         now = time.time()
@@ -134,18 +139,24 @@ def run(cam: str, calib: str | None = "calib.json", calib_cam: int = 2, hfov: fl
         draw_2d(v, [(h[0], h[1]) for h in hands])
         cv2.imshow("stereo-hand mono: camera", cv2.resize(v, (800, int(v.shape[0] * 800 / v.shape[1]))))
         cv2.imshow("stereo-hand mono: 3D", view.render(worlds, text))
+        cv2.imshow("rover arm", arm_view.render(arm.q, arm.g, arm.target, arm_text(arm_state)))
         key = cv2.waitKey(1) & 0xFF
         view.key(key)
+        arm_view.key(key)
+        if key == ord("x"):
+            arm.release()
         if key in (ord("q"), 27):
             break
         if key == ord("z") and worlds:
             zero = worlds[0][0].copy()
+            arm.engage(pose)
         if key == ord("b"):
             bp = board_pose(board, frame, K, d)
             if bp is None:
                 print("board not visible; lay it flat where the camera can see it")
             else:
                 Rw, tw = desk_frame(*bp)
+                arm.set_frame("desk")
                 desk, view.desk, view.center, zero, filt.x = True, True, None, None, None
                 view.trail.clear()
                 print("desk frame set for this session: x along the board, y across it, z up")
