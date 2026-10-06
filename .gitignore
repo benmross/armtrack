@@ -8,3 +8,4 @@ board.png
 .pytest_cache/
 board-phone.png
 calib-35mm.json.bak
+phone-link.log

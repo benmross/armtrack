@@ -75,6 +75,54 @@ def local_ips() -> list[str]:
 
 
 FINE_SCALE = 0.5
+QUIET_S = 0.5  # no packet for this long: the arm lets go (deadman) and the view says so
+
+
+class LinkLog:
+    """Records every gap in the phone's packets, with enough to tell whose fault it was.
+
+    Each packet carries the phone's own frame time. If the phone's clock also
+    jumped across a gap, the phone did not produce or send frames (the app
+    stalled). If the phone's clock ran normally and the late packets then
+    arrive in a clump, the network held them. If they never arrive, the
+    network dropped them."""
+
+    def __init__(self, path: str = "phone-link.log", gap_s: float = 0.1):
+        self.f = open(path, "a", buffering=1)
+        self.gap_s = gap_s
+        self.last_rx = self.last_phone_t = None
+        self.pending = None   # a gap being characterised: [time, gap, phone gap, packets since, deadline]
+        self.worst = 0.0
+        self.f.write(f"--- session {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+
+    def packet(self, now: float, phone_t: float | None) -> None:
+        if self.pending and now <= self.pending[4]:
+            self.pending[3] += 1
+        if self.last_rx is not None:
+            gap = now - self.last_rx
+            if gap > self.gap_s:
+                self.flush(now)
+                pgap = (phone_t - self.last_phone_t) if (phone_t and self.last_phone_t) else float("nan")
+                self.pending = [now, gap, pgap, 0, now + 0.05]
+                self.worst = max(self.worst, gap)
+        self.last_rx, self.last_phone_t = now, phone_t
+
+    def flush(self, now: float) -> None:
+        if self.pending and now > self.pending[4]:
+            t, gap, pgap, burst, _ = self.pending
+            expect = pgap * 60 if pgap == pgap else 0
+            if pgap != pgap:
+                verdict = "unknown"
+            elif pgap > 0.6 * gap and burst <= 4:
+                verdict = "phone sent nothing, or the packets were lost: its clock jumped too"
+            elif burst > 4:
+                verdict = "network held packets, then delivered them in a clump"
+            else:
+                verdict = "unclear"
+            self.f.write(f"{time.strftime('%H:%M:%S', time.localtime(t))} gap {gap * 1000:.0f} ms, "
+                         f"phone clock advanced {pgap * 1000:.0f} ms (~{expect:.0f} frames), "
+                         f"{burst} packets in the next 50 ms: {verdict}\n")
+            self.pending = None
 
 
 class PhoneArm:
@@ -125,10 +173,10 @@ class PhoneArm:
         return "limit" if st["at_limit"] else ""
 
     def tick(self, now: float) -> dict:
-        if self.msg is not None and now - self.last_rx > 0.3 and self.engaged_prev:
+        if self.msg is not None and now - self.last_rx > QUIET_S and self.engaged_prev:
             self.arm.release()  # deadman: the phone went quiet
             self.engaged_prev = False
-        fresh = self.msg is not None and now - self.last_rx <= 0.3
+        fresh = self.msg is not None and now - self.last_rx <= QUIET_S
         return self.arm.update(self.pose if fresh else None, now)
 
 
@@ -143,18 +191,22 @@ def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None
     viewer = Viewer(view_port)
     print("Ctrl-C to stop.")
     pa = PhoneArm()
+    link = LinkLog()
     rate, n, t_rate, t_pub, t_fb, phone_addr = 0, 0, time.time(), 0.0, 0.0, None
     try:
         while True:
             try:
                 data, phone_addr = rx.recvfrom(4096)
-                pa.feed(json.loads(data), time.time())
+                msg = json.loads(data)
+                link.packet(time.time(), msg.get("t"))
+                pa.feed(msg, time.time())
                 n += 1
             except (TimeoutError, socket.timeout):
                 pass
             except (ValueError, KeyError):
                 continue
             now = time.time()
+            link.flush(now)
             if now - t_rate >= 1:
                 rate, n, t_rate = n, 0, now
             if now - t_pub < 1 / 60:
@@ -171,7 +223,7 @@ def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None
                 out.sendto(json.dumps({"t": now, "source": "phone", "arm": st}).encode(), dest)
             if pa.msg is None:
                 status = f"waiting for the phone: enter {ips[0] if ips else 'this Mac IP'}, port {port}, in Arm Pilot"
-            elif now - pa.last_rx > 0.3:
+            elif now - pa.last_rx > QUIET_S:
                 status = "phone went quiet: arm holding"
             else:
                 hint = "" if st["engaged"] else ", hold your thumb on the phone to move"
