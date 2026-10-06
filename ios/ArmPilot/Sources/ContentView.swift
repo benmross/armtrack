@@ -18,8 +18,8 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                TextField("Mac IP address", text: $host)
-                    .keyboardType(.numbersAndPunctuation)
+                TextField("Mac name or IP", text: $host)
+                    .keyboardType(.URL)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .textFieldStyle(.roundedBorder)

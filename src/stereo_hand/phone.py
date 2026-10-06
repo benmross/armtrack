@@ -57,21 +57,38 @@ def heading_frame(pose: dict, fallback: np.ndarray) -> np.ndarray:
     return np.stack([fwd, left, up])
 
 
-def local_ips() -> list[str]:
-    ips = set()
+def local_addresses() -> list[str]:
+    """What to type into the app, most reliable first: this machine's Bonjour
+    name (works on any local network, IPv4 or IPv6), then its addresses.
+    192.0.0.x is left out: it is a placeholder a Mac gives itself on an
+    IPv6-only network such as a phone hotspot, and nothing can reach it."""
+    out = []
+    name = socket.gethostname().split(".")[0]
+    if name:
+        out.append(f"{name}.local")
+    for family, probe in ((socket.AF_INET, "8.8.8.8"), (socket.AF_INET6, "2001:4860:4860::8888")):
+        try:
+            s = socket.socket(family, socket.SOCK_DGRAM)
+            s.connect((probe, 80))
+            ip = s.getsockname()[0]
+            s.close()
+            if not ip.startswith(("127.", "192.0.0.", "::1", "fe80")):
+                out.append(ip)
+        except OSError:
+            pass
+    return out
+
+
+def open_receiver(port: int) -> socket.socket:
+    """One UDP socket that hears both IPv4 and IPv6, so a hotspot that only does IPv6 still works."""
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ips.add(s.getsockname()[0])
-        s.close()
+        rx = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        rx.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        rx.bind(("::", port))
     except OSError:
-        pass
-    try:
-        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-            ips.add(info[4][0])
-    except OSError:
-        pass
-    return sorted(ip for ip in ips if not ip.startswith("127."))
+        rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        rx.bind(("0.0.0.0", port))
+    return rx
 
 
 FINE_SCALE = 0.5
@@ -181,12 +198,11 @@ class PhoneArm:
 
 
 def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None:
-    rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    rx.bind(("0.0.0.0", port))
+    rx = open_receiver(port)
     rx.settimeout(1 / 120)
     out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) if udp else None
     dest = (udp.rsplit(":", 1)[0], int(udp.rsplit(":", 1)[1])) if udp else None
-    ips = local_ips()
+    ips = local_addresses()
     print(f"Listening for Arm Pilot on UDP {port}. Type one of these into the app: {', '.join(ips) or '(no network?)'}")
     viewer = Viewer(view_port)
     print("Ctrl-C to stop.")
