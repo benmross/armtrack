@@ -34,7 +34,14 @@ def phone_pose(msg: dict) -> dict:
     xc, yc, zc = rot[:, 0], rot[:, 1], rot[:, 2]
     hand_R = np.column_stack([-yc, -xc, -zc])
     return {"wrist_mm": (np.array(msg["pos"]) * 1000.0).tolist(), "rotation": hand_R.tolist(),
-            "grip_open": 0.0 if msg.get("grip") else 1.0}
+            "grip_open": _grip(msg)}
+
+
+def _grip(msg: dict) -> float:
+    """Gripper opening, 0 closed to 1 open. Older builds of the app sent only a closed flag."""
+    if "grip_open" in msg:
+        return float(min(1.0, max(0.0, msg["grip_open"])))
+    return 0.0 if msg.get("grip") else 1.0
 
 
 def heading_frame(pose: dict, fallback: np.ndarray) -> np.ndarray:

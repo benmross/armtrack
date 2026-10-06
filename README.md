@@ -173,7 +173,8 @@ nor jitters like a hand's apparent size.
    traffic.
 4. Hold the phone screen-up with the top edge pointing where the arm should
    reach. **Hold your thumb on the big pad** to move the arm and lift it to let
-   go (the arm holds). **Tap** to open or close the gripper. Forward is
+   go (the arm holds). While holding, **slide your thumb up to open the gripper and down to close
+   it**, as far or as little as you want. Forward is
    wherever the phone points when your thumb goes down.
 
 The back camera needs to see an ordinary room for tracking to stay "normal";

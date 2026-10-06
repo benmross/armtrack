@@ -74,3 +74,14 @@ def test_phone_going_quiet_releases():
     assert pa.arm.engaged
     pa.tick(10.0)
     assert not pa.arm.engaged
+
+
+def test_slider_sets_a_partial_grip():
+    pa = PhoneArm()
+    m = _msg([0, 1, 0], engaged=False)
+    m["grip_open"] = 0.35
+    _run(pa, [m])
+    assert abs(pa.arm.g - 0.35) < 0.01
+    m["grip_open"] = 7.0  # nonsense from the wire is clamped
+    _run(pa, [m])
+    assert pa.arm.g <= 1.0

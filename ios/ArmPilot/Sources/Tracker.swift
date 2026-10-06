@@ -12,7 +12,8 @@ final class Tracker: NSObject, ObservableObject, ARSessionDelegate {
 
     /// Set by the UI. Engaged = the arm follows the phone; released = the arm holds.
     var engaged = false
-    var gripClosed = false
+    /// 1 = fully open, 0 = fully closed.
+    var gripOpen: Double = 1
 
     private let session = ARSession()
     private var connection: NWConnection?
@@ -61,10 +62,10 @@ final class Tracker: NSObject, ObservableObject, ARSessionDelegate {
         let c0 = m.columns.0, c1 = m.columns.1, c2 = m.columns.2, p = m.columns.3
         // rot is the camera's x, y, z axes in world coordinates, as columns
         let json = String(
-            format: "{\"t\":%.4f,\"pos\":[%.5f,%.5f,%.5f],\"rot\":[[%.5f,%.5f,%.5f],[%.5f,%.5f,%.5f],[%.5f,%.5f,%.5f]],\"engaged\":%@,\"grip\":%d,\"tracking\":\"%@\"}",
+            format: "{\"t\":%.4f,\"pos\":[%.5f,%.5f,%.5f],\"rot\":[[%.5f,%.5f,%.5f],[%.5f,%.5f,%.5f],[%.5f,%.5f,%.5f]],\"engaged\":%@,\"grip_open\":%.3f,\"grip\":%d,\"tracking\":\"%@\"}",
             frame.timestamp, p.x, p.y, p.z,
             c0.x, c1.x, c2.x, c0.y, c1.y, c2.y, c0.z, c1.z, c2.z,
-            engaged ? "true" : "false", gripClosed ? 1 : 0, state)
+            engaged ? "true" : "false", gripOpen, gripOpen < 0.5 ? 1 : 0, state)
         connection?.send(content: json.data(using: .utf8), completion: .idempotent)
 
         sent += 1

@@ -5,8 +5,14 @@ struct ContentView: View {
     @AppStorage("host") private var host = ""
     @AppStorage("port") private var port = 5006
     @State private var engaged = false
-    @State private var gripClosed = false
-    @State private var touchStart: Date?
+    @State private var gripOpen = 1.0          // 1 open, 0 closed
+    @State private var gripAtTouch: Double?
+    @State private var sliding = false
+
+    /// Thumb travel, in points, from fully open to fully closed.
+    private let travel = 240.0
+    /// Movement ignored before a slide counts, so holding still never changes the grip.
+    private let deadzone = 14.0
 
     var body: some View {
         VStack(spacing: 12) {
@@ -29,49 +35,59 @@ struct ContentView: View {
             }
             .foregroundStyle(.secondary)
 
-            Button {
-                gripClosed.toggle()
-                tracker.gripClosed = gripClosed
-            } label: {
-                Text(gripClosed ? "GRIPPER CLOSED" : "GRIPPER OPEN")
-                    .font(.title3.bold())
-                    .frame(maxWidth: .infinity, minHeight: 64)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(gripClosed ? .red : .gray)
-
-            ZStack {
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(engaged ? Color.green.opacity(0.85) : Color(.secondarySystemBackground))
-                VStack(spacing: 8) {
-                    Text(engaged ? "MOVING" : "HOLD TO MOVE").font(.largeTitle.bold())
-                    Text(engaged ? "Lift to let go: the arm holds still"
-                                 : "Hold: the arm follows the phone\nTap: open or close the gripper")
-                        .multilineTextAlignment(.center)
-                        .font(.callout)
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(engaged ? Color.green.opacity(0.85) : Color(.secondarySystemBackground))
+                    VStack(spacing: 8) {
+                        Text(engaged ? "MOVING" : "HOLD TO MOVE").font(.largeTitle.bold())
+                        Text(engaged ? "Slide up to open, down to close\nLift to let go: the arm holds still"
+                                     : "Hold: the arm follows the phone\nSlide up or down: open or close the gripper")
+                            .multilineTextAlignment(.center)
+                            .font(.callout)
+                    }
+                    .foregroundStyle(engaged ? .white : .primary)
+                    .padding(.horizontal, 8)
                 }
-                .foregroundStyle(engaged ? .white : .primary)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { v in
+                            if gripAtTouch == nil {
+                                gripAtTouch = gripOpen
+                                sliding = false
+                                setEngaged(true)
+                            }
+                            let dy = Double(v.translation.height)
+                            if !sliding && abs(dy) > deadzone { sliding = true }
+                            guard sliding, let start = gripAtTouch else { return }
+                            // past the deadzone, thumb travel maps straight onto the gripper: up opens
+                            let moved = dy > 0 ? dy - deadzone : dy + deadzone
+                            setGrip(start - moved / travel)
+                        }
+                        .onEnded { _ in
+                            gripAtTouch = nil
+                            sliding = false
+                            setEngaged(false)
+                        }
+                )
+
+                // gripper gauge: full = open, empty = closed
+                VStack(spacing: 6) {
+                    Text("OPEN").font(.caption2.bold()).foregroundStyle(.secondary)
+                    GeometryReader { geo in
+                        ZStack(alignment: .bottom) {
+                            RoundedRectangle(cornerRadius: 10).fill(Color(.secondarySystemBackground))
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(gripOpen < 0.08 ? Color.red : Color.orange)
+                                .frame(height: max(6, geo.size.height * gripOpen))
+                        }
+                    }
+                    .frame(width: 34)
+                    Text("CLOSED").font(.caption2.bold()).foregroundStyle(.secondary)
+                    Text("\(Int((gripOpen * 100).rounded()))%").font(.footnote.monospacedDigit())
+                }
             }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        if touchStart == nil {
-                            touchStart = Date()
-                            setEngaged(true)
-                        }
-                    }
-                    .onEnded { v in
-                        let quick = Date().timeIntervalSince(touchStart ?? .distantPast) < 0.25
-                        let still = hypot(v.translation.width, v.translation.height) < 20
-                        touchStart = nil
-                        setEngaged(false)
-                        if quick && still {
-                            gripClosed.toggle()
-                            tracker.gripClosed = gripClosed
-                        }
-                    }
-            )
 
             Text("Hold the phone screen-up, top edge pointing where the arm should reach. The back camera needs to see the room.")
                 .font(.caption)
@@ -81,11 +97,22 @@ struct ContentView: View {
         .padding()
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
+            tracker.gripOpen = gripOpen
             tracker.start()
             tracker.connect(host: host, port: UInt16(clamping: port))
         }
         .onChange(of: host) { _, h in tracker.connect(host: h, port: UInt16(clamping: port)) }
         .onChange(of: port) { _, p in tracker.connect(host: host, port: UInt16(clamping: p)) }
+    }
+
+    private func setGrip(_ value: Double) {
+        let g = min(1, max(0, value))
+        // one tick as the gripper reaches either end, so you can feel it without looking
+        if (g == 0 || g == 1) && g != gripOpen {
+            UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+        }
+        gripOpen = g
+        tracker.gripOpen = g
     }
 
     private func setEngaged(_ on: Bool) {
