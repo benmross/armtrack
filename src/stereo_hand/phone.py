@@ -74,6 +74,9 @@ def local_ips() -> list[str]:
     return sorted(ip for ip in ips if not ip.startswith("127."))
 
 
+FINE_SCALE = 0.5
+
+
 class PhoneArm:
     """Feeds phone packets into an ArmController, handling clutch edges and dropouts."""
 
@@ -83,11 +86,27 @@ class PhoneArm:
         self.engaged_prev = False
         self.last_rx = 0.0
         self.msg: dict | None = None
+        self.home_seen: int | None = None
+        self.wait_for_lift = False
 
     def feed(self, msg: dict, now: float) -> None:
         self.msg, self.last_rx = msg, now
         pose = phone_pose(msg)
         engaged = bool(msg.get("engaged")) and msg.get("tracking") == "normal"
+        # fine mode: the arm moves less than the phone does, for lining up on a key or a button
+        self.arm.set_scale(FINE_SCALE if msg.get("fine") else self.arm.spec.scale, pose)
+        # home is a counter, so a lost or repeated packet cannot miss or repeat the press
+        home = msg.get("home")
+        if home is not None and self.home_seen is not None and home != self.home_seen:
+            self.arm.go_home()
+            self.engaged_prev = False
+            self.wait_for_lift = True  # a thumb already down must lift before it can grab the arm again
+        if home is not None:
+            self.home_seen = home
+        if not msg.get("engaged"):
+            self.wait_for_lift = False
+        if self.wait_for_lift:
+            engaged = False
         if engaged and not self.engaged_prev:
             self.arm.M = heading_frame(pose, self.arm.M)
             self.arm.engage(pose)
@@ -96,6 +115,14 @@ class PhoneArm:
         self.engaged_prev = engaged
         self.arm.grip = pose["grip_open"]  # the gripper follows the tap even while released
         self.pose = pose
+
+    def warning(self, st: dict) -> str:
+        """What the phone should buzz about: only while the operator is driving."""
+        if not st["engaged"]:
+            return ""
+        if not st["reachable"]:
+            return "reach"
+        return "limit" if st["at_limit"] else ""
 
     def tick(self, now: float) -> dict:
         if self.msg is not None and now - self.last_rx > 0.3 and self.engaged_prev:
@@ -116,11 +143,11 @@ def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None
     viewer = Viewer(view_port)
     print("Ctrl-C to stop.")
     pa = PhoneArm()
-    rate, n, t_rate, t_pub = 0, 0, time.time(), 0.0
+    rate, n, t_rate, t_pub, t_fb, phone_addr = 0, 0, time.time(), 0.0, 0.0, None
     try:
         while True:
             try:
-                data = rx.recv(4096)
+                data, phone_addr = rx.recvfrom(4096)
                 pa.feed(json.loads(data), time.time())
                 n += 1
             except (TimeoutError, socket.timeout):
@@ -134,6 +161,12 @@ def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None
                 continue
             t_pub = now
             st = pa.tick(now)
+            if phone_addr and now - t_fb >= 0.1:  # tell the phone, 10 times a second, what to buzz about
+                t_fb = now
+                try:
+                    rx.sendto(json.dumps({"warn": pa.warning(st), "limit": st["at_limit"]}).encode(), phone_addr)
+                except OSError:
+                    pass
             if out:
                 out.sendto(json.dumps({"t": now, "source": "phone", "arm": st}).encode(), dest)
             if pa.msg is None:
@@ -142,7 +175,9 @@ def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None
                 status = "phone went quiet: arm holding"
             else:
                 hint = "" if st["engaged"] else ", hold your thumb on the phone to move"
-                status = f"phone {rate}/s, tracking {pa.msg.get('tracking')}{hint}"
+                mode = "fine control 0.5x" if pa.msg.get("fine") else "normal 2.5x"
+                limit = f", at limit: {', '.join(st['at_limit'])}" if st["at_limit"] and st["engaged"] else ""
+                status = f"phone {rate}/s, {mode}, tracking {pa.msg.get('tracking')}{hint}{limit}"
             viewer.publish({**st, "status": status})
     except KeyboardInterrupt:
         pass

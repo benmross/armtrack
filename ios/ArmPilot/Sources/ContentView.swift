@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var gripOpen = 1.0          // 1 open, 0 closed
     @State private var gripAtTouch: Double?
     @State private var sliding = false
+    @State private var fine = false
 
     /// Thumb travel, in points, from fully open to fully closed.
     private let travel = 240.0
@@ -35,12 +36,40 @@ struct ContentView: View {
             }
             .foregroundStyle(.secondary)
 
+            HStack(spacing: 10) {
+                Button {
+                    fine.toggle()
+                    tracker.fine = fine
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    VStack(spacing: 2) {
+                        Text(fine ? "FINE" : "NORMAL").font(.headline)
+                        Text(fine ? "arm moves 0.5x" : "arm moves 2.5x").font(.caption2)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 52)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(fine ? .blue : .gray)
+
+                Button {
+                    tracker.homeCount += 1
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                } label: {
+                    VStack(spacing: 2) {
+                        Text("HOME").font(.headline)
+                        Text("back to rest").font(.caption2)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 52)
+                }
+                .buttonStyle(.bordered)
+            }
+
             HStack(spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 24)
-                        .fill(engaged ? Color.green.opacity(0.85) : Color(.secondarySystemBackground))
+                        .fill(padColor)
                     VStack(spacing: 8) {
-                        Text(engaged ? "MOVING" : "HOLD TO MOVE").font(.largeTitle.bold())
+                        Text(padTitle).font(.largeTitle.bold())
                         Text(engaged ? "Slide up to open, down to close\nLift to let go: the arm holds still"
                                      : "Hold: the arm follows the phone\nSlide up or down: open or close the gripper")
                             .multilineTextAlignment(.center)
@@ -103,6 +132,18 @@ struct ContentView: View {
         }
         .onChange(of: host) { _, h in tracker.connect(host: h, port: UInt16(clamping: port)) }
         .onChange(of: port) { _, p in tracker.connect(host: host, port: UInt16(clamping: p)) }
+    }
+
+    private var warned: Bool { engaged && !tracker.warning.isEmpty }
+
+    private var padColor: Color {
+        if warned { return Color.red.opacity(0.85) }
+        return engaged ? Color.green.opacity(0.85) : Color(.secondarySystemBackground)
+    }
+
+    private var padTitle: String {
+        if warned { return tracker.warning == "reach" ? "OUT OF REACH" : "JOINT LIMIT" }
+        return engaged ? "MOVING" : "HOLD TO MOVE"
     }
 
     private func setGrip(_ value: Double) {

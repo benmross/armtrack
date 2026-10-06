@@ -2,6 +2,7 @@ import ARKit
 import Foundation
 import Network
 import QuartzCore
+import UIKit
 
 /// Tracks the phone's 6-DoF pose with ARKit world tracking (camera + IMU) and
 /// streams it to the Mac over UDP, one small JSON packet per camera frame.
@@ -9,11 +10,18 @@ final class Tracker: NSObject, ObservableObject, ARSessionDelegate {
     @Published var status = "Starting"
     @Published var trackingOK = false
     @Published var rate = 0
+    /// What the Mac says is wrong while you drive: "reach", "limit", or "" when all is well.
+    @Published var warning = ""
 
     /// Set by the UI. Engaged = the arm follows the phone; released = the arm holds.
     var engaged = false
     /// 1 = fully open, 0 = fully closed.
     var gripOpen: Double = 1
+    /// Fine control: the arm moves a fifth as far for the same hand motion.
+    var fine = false
+    /// Bumped on every press of Home. A counter survives a lost or repeated packet.
+    var homeCount = 0
+    private var lastBuzz = 0.0
 
     private let session = ARSession()
     private var connection: NWConnection?
@@ -40,6 +48,35 @@ final class Tracker: NSObject, ObservableObject, ARSessionDelegate {
         let c = NWConnection(host: NWEndpoint.Host(host), port: p, using: .udp)
         c.start(queue: .global(qos: .userInteractive))
         connection = c
+        listen(on: c)
+    }
+
+    /// The Mac answers on the same socket, ten times a second, with what to warn about.
+    private func listen(on c: NWConnection) {
+        c.receiveMessage { [weak self] data, _, _, error in
+            guard let self, error == nil, c === self.connection else { return }
+            if let data,
+               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let warn = obj["warn"] as? String {
+                DispatchQueue.main.async { self.apply(warning: warn) }
+            }
+            self.listen(on: c)
+        }
+    }
+
+    private func apply(warning warn: String) {
+        let now = CACurrentMediaTime()
+        if warn != warning {
+            warning = warn
+            if !warn.isEmpty {
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                lastBuzz = now
+            }
+        } else if !warn.isEmpty, now - lastBuzz > 0.6 {
+            // still against the stop: keep nudging, gently
+            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+            lastBuzz = now
+        }
     }
 
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
@@ -62,10 +99,11 @@ final class Tracker: NSObject, ObservableObject, ARSessionDelegate {
         let c0 = m.columns.0, c1 = m.columns.1, c2 = m.columns.2, p = m.columns.3
         // rot is the camera's x, y, z axes in world coordinates, as columns
         let json = String(
-            format: "{\"t\":%.4f,\"pos\":[%.5f,%.5f,%.5f],\"rot\":[[%.5f,%.5f,%.5f],[%.5f,%.5f,%.5f],[%.5f,%.5f,%.5f]],\"engaged\":%@,\"grip_open\":%.3f,\"grip\":%d,\"tracking\":\"%@\"}",
+            format: "{\"t\":%.4f,\"pos\":[%.5f,%.5f,%.5f],\"rot\":[[%.5f,%.5f,%.5f],[%.5f,%.5f,%.5f],[%.5f,%.5f,%.5f]],\"engaged\":%@,\"grip_open\":%.3f,\"grip\":%d,\"fine\":%@,\"home\":%d,\"tracking\":\"%@\"}",
             frame.timestamp, p.x, p.y, p.z,
             c0.x, c1.x, c2.x, c0.y, c1.y, c2.y, c0.z, c1.z, c2.z,
-            engaged ? "true" : "false", gripOpen, gripOpen < 0.5 ? 1 : 0, state)
+            engaged ? "true" : "false", gripOpen, gripOpen < 0.5 ? 1 : 0,
+            fine ? "true" : "false", homeCount, state)
         connection?.send(content: json.data(using: .utf8), completion: .idempotent)
 
         sent += 1

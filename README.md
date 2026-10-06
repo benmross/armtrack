@@ -177,6 +177,12 @@ nor jitters like a hand's apparent size.
    it**, as far or as little as you want. Forward is
    wherever the phone points when your thumb goes down.
 
+**FINE** switches the arm from 2.5x your motion to 0.5x, for lining up on a
+key or a button; switching mid-hold does not move the arm. **HOME** sends it
+back to its rest pose. When you push the arm out of reach or onto a joint
+limit, the pad turns red and the phone buzzes: the Mac reports it back over
+the same connection ten times a second.
+
 The back camera needs to see an ordinary room for tracking to stay "normal";
 the app shows the tracking state.
 

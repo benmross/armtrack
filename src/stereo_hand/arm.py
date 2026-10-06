@@ -245,6 +245,7 @@ class ArmController:
         self.engaged = False
         self.ref = None
         self.t = None
+        self.scale = spec.scale  # arm metres per metre of operator motion; lower for fine work
 
     def set_frame(self, frame: str) -> None:
         self.M = CAM_TO_ARM if frame.startswith("camera") else np.eye(3)
@@ -260,6 +261,25 @@ class ArmController:
         self.engaged = False
         self.ref = None
 
+    def set_scale(self, scale: float, pose: dict | None = None) -> None:
+        """Change how far the arm moves per unit of operator motion. Re-references
+        the clutch at the current pose, so switching mid-move never jumps the target."""
+        if abs(scale - self.scale) < 1e-9:
+            return
+        self.scale = scale
+        if self.engaged and pose is not None:
+            self.engage(pose)
+
+    def go_home(self) -> None:
+        """Let go and send the arm back to its rest pose, at its normal joint speeds."""
+        self.release()
+        self.command(HOME_TIP, HOME_PITCH, 0.0)
+
+    def at_limit(self, margin_deg: float = 1.0) -> list[str]:
+        lim = np.radians(np.array(self.spec.limits_deg))
+        m = math.radians(margin_deg)
+        return [n for n, v, (lo, hi) in zip(JOINTS[:4], self.q_goal, lim) if v <= lo + m or v >= hi - m]
+
     def command(self, tip: np.ndarray, pitch: float, roll: float, grip: float | None = None) -> None:
         """Set the target directly (used by the scripted demo)."""
         self.target = clamp_target(tip, self.spec)
@@ -273,7 +293,7 @@ class ArmController:
             hand0, p0, r0, tip0, pitch0, roll0 = self.ref
             hand = self.M @ np.array(pose["wrist_mm"]) / 1000.0
             p, r = _hand_angles(pose["rotation"], self.M)
-            self.command(tip0 + self.spec.scale * (hand - hand0), pitch0 + _wrap(p - p0),
+            self.command(tip0 + self.scale * (hand - hand0), pitch0 + _wrap(p - p0),
                          roll0 + _wrap(r - r0), pose["grip_open"])
         self.q_goal, self.reachable = ik(self.target, self.pitch, self.roll, self.spec, q0=self.q_goal)
         dt = 0.0 if self.t is None else min(max(t - self.t, 0.0), 0.1)
@@ -293,6 +313,7 @@ class ArmController:
             "target_tip_m": np.round(self.target, 4).tolist(),
             "tip_m": np.round(k["tip"], 4).tolist(),
             "lag_m": round(float(np.linalg.norm(k["tip"] - self.target)), 4),
+            "scale": self.scale, "at_limit": self.at_limit(),
         }
 
 

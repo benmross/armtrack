@@ -85,3 +85,53 @@ def test_slider_sets_a_partial_grip():
     m["grip_open"] = 7.0  # nonsense from the wire is clamped
     _run(pa, [m])
     assert pa.arm.g <= 1.0
+
+
+def test_fine_mode_moves_a_fifth_as_far_and_switching_does_not_jump():
+    def travel(fine):
+        pa = PhoneArm()
+        a = _msg([0, 1, 0]); a["fine"] = fine
+        b = _msg([0, 1, -0.08]); b["fine"] = fine
+        _run(pa, [a], steps=5)
+        tip0 = fk(pa.arm.q)["tip"].copy()
+        _run(pa, [b])
+        return fk(pa.arm.q)["tip"][0] - tip0[0]
+    normal, fine = travel(False), travel(True)
+    assert abs(normal - 0.20) < 0.01 and abs(fine - 0.04) < 0.005
+
+    pa = PhoneArm()
+    _run(pa, [_msg([0, 1, 0])], steps=5)
+    _run(pa, [_msg([0, 1, -0.05])])
+    target = pa.arm.target.copy()
+    m = _msg([0, 1, -0.05]); m["fine"] = True
+    _run(pa, [m], steps=30)  # same place, mode switched mid-hold
+    assert np.allclose(pa.arm.target, target, atol=1e-6)
+
+
+def test_home_button_returns_the_arm_and_needs_a_fresh_hold():
+    from stereo_hand.arm import HOME_TIP
+    pa = PhoneArm()
+    a = _msg([0, 1, 0]); a["home"] = 0
+    b = _msg([0.05, 1.05, -0.08]); b["home"] = 0
+    _run(pa, [a], steps=5)
+    _run(pa, [b])
+    assert np.linalg.norm(fk(pa.arm.q)["tip"] - HOME_TIP) > 0.1
+    c = dict(b); c["home"] = 1                      # pressed while the thumb is still down
+    _run(pa, [c], steps=900)
+    assert np.linalg.norm(fk(pa.arm.q)["tip"] - HOME_TIP) < 0.01
+    assert not pa.arm.engaged                        # the held thumb did not grab it back
+    d = dict(c); d["engaged"] = False
+    _run(pa, [d], steps=3)
+    _run(pa, [c], steps=3)
+    assert pa.arm.engaged                            # lift, then hold again: engaged
+
+
+def test_warning_only_while_driving():
+    pa = PhoneArm()
+    far = _msg([0, 1, -2.0])                        # 5 m of arm travel: out of reach
+    _run(pa, [_msg([0, 1, 0])], steps=5)
+    _run(pa, [far], steps=60)
+    assert pa.warning(pa.arm.state()) == "reach"
+    off = dict(far); off["engaged"] = False
+    _run(pa, [off], steps=5)
+    assert pa.warning(pa.arm.state()) == ""
