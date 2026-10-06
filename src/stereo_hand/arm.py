@@ -3,8 +3,9 @@
 The model follows the Loop rover's arm as photographed: a turret that yaws on
 the chassis, a tall upper arm pushed by linear actuators, a forearm reaching
 forward and down, a wrist that pitches and rolls, and a two-finger gripper.
-Link lengths and joint speeds are estimates; change ARM when the team's real
-numbers exist.
+Upper arm and forearm lengths, joint speeds and the wrist roll range come from
+the team's URDF (umdloop/software-urc4). The wrist and gripper lengths, the
+pitch joints' ranges and the accelerations are still estimates.
 
 How a command becomes motion, in three stages, each there for a reason:
 
@@ -38,14 +39,18 @@ JOINTS = ("base_yaw", "shoulder", "elbow", "wrist_pitch", "wrist_roll")
 @dataclass
 class ArmSpec:
     shoulder_h: float = 0.14   # turret top to shoulder axis, m
-    upper: float = 0.52        # shoulder to elbow
-    fore: float = 0.56         # elbow to wrist pitch axis
+    upper: float = 0.582       # shoulder to elbow (software-urc4 URDF, elbow_pitch origin)
+    fore: float = 0.582        # elbow to wrist pitch axis (URDF, wrist_pitch origin)
     wrist: float = 0.13        # wrist pitch axis to gripper palm
     finger: float = 0.13       # palm to fingertips
-    limits_deg: tuple = ((-170, 170), (-5, 120), (-165, -10), (-115, 115), (-180, 180))
-    # speeds and accelerations per joint (deg/s, deg/s^2): the shoulder is a
-    # linear actuator and the slowest; the wrist is light and quick
-    max_speed_deg: tuple = (50.0, 30.0, 45.0, 90.0, 140.0)
+    # Wrist roll is the URDF's +/-1.57 rad. The URDF gives the three pitch
+    # joints a nominal +/-3.14 in its own zero convention, which would let this
+    # model fold through itself, so those stay as estimated mechanical ranges
+    # until the real stops and zero offsets are known.
+    limits_deg: tuple = ((-170, 170), (-5, 120), (-165, -10), (-115, 115), (-90, 90))
+    # Every arm joint in the URDF and MoveIt limits is capped at 0.5 rad/s.
+    # They state no acceleration limit; these are estimates.
+    max_speed_deg: tuple = (28.65, 28.65, 28.65, 28.65, 28.65)
     max_accel_deg: tuple = (120.0, 70.0, 110.0, 300.0, 400.0)
     gripper_time_s: float = 0.8   # fully open to fully closed
     scale: float = 2.5            # arm metres moved per metre of operator motion

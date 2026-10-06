@@ -144,15 +144,17 @@ The control path, in `arm.py`:
   and clamped to joint limits every step, so the arm never flips between
   elbow configurations, stays stable at full stretch and over its base, and
   settles at the nearest pose when a target is out of reach.
-- **Motion.** Each joint has its own speed and acceleration limit (the
-  shoulder actuator is slowest at 30 deg/s, the wrist fastest), and brakes in
-  time to stop on its goal, so the arm lags a fast hand the way the real one
-  would and a tracking glitch cannot fling it. The gripper takes 0.8 s end to
+- **Motion.** Every joint is capped at 0.5 rad/s (about 29 deg/s), the limit
+  in the team's URDF, with an acceleration limit on top, and brakes in time to
+  stop on its goal. The arm therefore lags a fast hand the way the real one
+  would, and a tracking glitch cannot fling it. The gripper takes 0.8 s end to
   end. The view shows the commanded target as a green ghost and the joint
   speeds as amber bars.
 
-Link lengths, limits and speeds are estimates in `ArmSpec`; replace them with
-the team's real numbers. The joint angles go out in every UDP packet under
+Upper arm and forearm lengths (0.582 m each), joint speed and the wrist roll
+range come from the team's URDF in `umdloop/software-urc4`. The wrist and
+gripper lengths, the pitch joints' ranges and the accelerations in `ArmSpec`
+are still estimates. The joint angles go out in every UDP packet under
 `arm`.
 
 ## Phone as the controller (recommended)
