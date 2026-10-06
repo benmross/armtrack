@@ -18,7 +18,7 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                TextField("Mac name or IP", text: $host)
+                TextField("Mac address (not needed on hotspot)", text: $host)
                     .keyboardType(.URL)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
@@ -30,7 +30,11 @@ struct ContentView: View {
             }
             HStack {
                 Circle().fill(tracker.trackingOK ? .green : .orange).frame(width: 10, height: 10)
-                Text("Tracking \(tracker.status)").font(.footnote)
+                Text(tracker.peer.isEmpty ? "Tracking \(tracker.status)"
+                                          : "Paired with \(tracker.peer) · tracking \(tracker.status)")
+                    .font(.footnote)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 Spacer()
                 Text("\(tracker.rate)/s").font(.footnote.monospacedDigit())
             }
@@ -128,6 +132,7 @@ struct ContentView: View {
             UIApplication.shared.isIdleTimerDisabled = true
             tracker.gripOpen = gripOpen
             tracker.start()
+            tracker.startListening()
             tracker.connect(host: host, port: UInt16(clamping: port))
         }
         .onChange(of: host) { _, h in tracker.connect(host: h, port: UInt16(clamping: port)) }

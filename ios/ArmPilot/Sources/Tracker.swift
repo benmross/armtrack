@@ -12,6 +12,9 @@ final class Tracker: NSObject, ObservableObject, ARSessionDelegate {
     @Published var rate = 0
     /// What the Mac says is wrong while you drive: "reach", "limit", or "" when all is well.
     @Published var warning = ""
+    /// Name of the Mac that found this phone by itself, or "" when the address was typed.
+    @Published var peer = ""
+    private var listener: NWListener?
 
     /// Set by the UI. Engaged = the arm follows the phone; released = the arm holds.
     var engaged = false
@@ -40,10 +43,50 @@ final class Tracker: NSObject, ObservableObject, ARSessionDelegate {
         session.run(config)
     }
 
+    /// Wait for a Mac to announce itself. On the phone's own hotspot the Mac's
+    /// router is this phone, so `stereo-hand phone` reaches us with no address
+    /// typed; we then answer on the very connection it opened.
+    func startListening() {
+        guard listener == nil else { return }
+        let params = NWParameters.udp
+        params.allowLocalEndpointReuse = true
+        guard let l = try? NWListener(using: params, on: 5007) else { return }
+        l.newConnectionHandler = { [weak self] c in
+            c.start(queue: .global(qos: .userInteractive))
+            self?.awaitHello(c)
+        }
+        l.start(queue: .global(qos: .userInteractive))
+        listener = l
+    }
+
+    private func awaitHello(_ c: NWConnection) {
+        c.receiveMessage { [weak self] data, _, _, error in
+            guard let self, error == nil else { c.cancel(); return }
+            if let data,
+               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               obj["armpilot"] != nil {
+                let name = obj["name"] as? String ?? "Mac"
+                DispatchQueue.main.async { self.adopt(c, name: name) }
+            } else {
+                self.awaitHello(c)
+            }
+        }
+    }
+
+    private func adopt(_ c: NWConnection, name: String) {
+        guard connection !== c else { return }
+        connection?.cancel()
+        connection = c
+        target = "paired"
+        peer = name
+        listen(on: c)
+    }
+
     func connect(host: String, port: UInt16) {
         let key = "\(host):\(port)"
         guard key != target, !host.isEmpty, let p = NWEndpoint.Port(rawValue: port) else { return }
         target = key
+        peer = ""
         connection?.cancel()
         let c = NWConnection(host: NWEndpoint.Host(host), port: p, using: .udp)
         c.start(queue: .global(qos: .userInteractive))

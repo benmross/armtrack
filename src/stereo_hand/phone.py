@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import math
 import socket
+import subprocess
 import time
 
 import numpy as np
@@ -89,6 +90,42 @@ def open_receiver(port: int) -> socket.socket:
         rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         rx.bind(("0.0.0.0", port))
     return rx
+
+
+PAIR_PORT = 5007  # Arm Pilot listens here for a Mac announcing itself
+
+
+def gateways() -> list[tuple]:
+    """Socket addresses of this machine's default routers, for an IPv6 dual-stack socket.
+
+    On a phone hotspot (Wi-Fi or USB) the default router *is* the phone, so
+    announcing ourselves to the router reaches Arm Pilot with nothing typed.
+    On ordinary Wi-Fi the router just ignores it."""
+    try:
+        table = subprocess.run(["netstat", "-rn"], capture_output=True, text=True, timeout=2).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return parse_gateways(table)
+
+
+def parse_gateways(table: str) -> list[tuple]:
+    out = []
+    for line in table.splitlines():
+        parts = line.split()
+        if len(parts) < 4 or parts[0] != "default":
+            continue
+        gw, iface = parts[1], parts[-1]
+        if iface.startswith(("utun", "lo")) or gw.startswith(("link#", "192.0.0.")):
+            continue  # VPN tunnels, and the placeholder router of an IPv6-only network
+        try:
+            if ":" in gw:
+                host, _, scope = gw.partition("%")
+                out.append((host, PAIR_PORT, 0, socket.if_nametoindex(scope or iface)))
+            elif gw.count(".") == 3:
+                out.append((f"::ffff:{gw}", PAIR_PORT, 0, 0))
+        except OSError:
+            continue
+    return list(dict.fromkeys(out))
 
 
 FINE_SCALE = 0.5
@@ -209,6 +246,8 @@ def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None
     pa = PhoneArm()
     link = LinkLog()
     rate, n, t_rate, t_pub, t_fb, phone_addr = 0, 0, time.time(), 0.0, 0.0, None
+    hello = json.dumps({"armpilot": 1, "name": socket.gethostname().split(".")[0], "port": port}).encode()
+    t_hello, t_gw, gws = 0.0, 0.0, []
     try:
         while True:
             try:
@@ -222,6 +261,17 @@ def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None
             except (ValueError, KeyError):
                 continue
             now = time.time()
+            # nobody talking to us: announce ourselves to the router once a second,
+            # from the receiving socket, so the phone can simply answer
+            if now - pa.last_rx > 1.0 and now - t_hello >= 1.0:
+                t_hello = now
+                if now - t_gw > 5.0:
+                    t_gw, gws = now, gateways()
+                for addr in gws:
+                    try:
+                        rx.sendto(hello, addr)
+                    except OSError:
+                        pass
             link.flush(now)
             if now - t_rate >= 1:
                 rate, n, t_rate = n, 0, now
@@ -238,7 +288,8 @@ def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None
             if out:
                 out.sendto(json.dumps({"t": now, "source": "phone", "arm": st}).encode(), dest)
             if pa.msg is None:
-                status = f"waiting for the phone: enter {ips[0] if ips else 'this Mac IP'}, port {port}, in Arm Pilot"
+                where = ips[1] if len(ips) > 1 else (ips[0] if ips else "this Mac's address")
+                status = f"waiting for the phone: on its hotspot it pairs by itself; otherwise enter {where} in Arm Pilot"
             elif now - pa.last_rx > QUIET_S:
                 status = "phone went quiet: arm holding"
             else:

@@ -135,3 +135,18 @@ def test_warning_only_while_driving():
     off = dict(far); off["engaged"] = False
     _run(pa, [off], steps=5)
     assert pa.warning(pa.arm.state()) == ""
+
+
+def test_gateways_pick_the_real_router_only(monkeypatch):
+    import socket
+    from stereo_hand.phone import PAIR_PORT, parse_gateways
+    monkeypatch.setattr(socket, "if_nametoindex", lambda n: {"en0": 14, "en7": 21}[n])
+    hotspot = """
+default            192.0.0.1          UGScg                 en0
+default            link#32            UCSIg               utun9
+default                                 fe80::7442:18ff:fe41:e364%en0           UGcg                  en0
+default                                 fe80::%utun0                            UGcIg               utun0
+"""
+    assert parse_gateways(hotspot) == [("fe80::7442:18ff:fe41:e364", PAIR_PORT, 0, 14)]
+    home = "default            192.168.1.1        UGScg                 en0\n"
+    assert parse_gateways(home) == [("::ffff:192.168.1.1", PAIR_PORT, 0, 0)]
