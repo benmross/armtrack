@@ -16,8 +16,8 @@ From the URC 2027 rules:
   iPhone SE (2nd generation), which runs ARKit and the current app, is about
   $100.
 - Wireless (2.c): the text does not forbid a wireless link inside the control
-  station. The 2.4 GHz band is unrestricted (2.c.vi). The 900 MHz sub-band
-  rules cover every link including any LAN (2.c.v). If the team was told
+  station: the 2.4 GHz band is unrestricted (2.c.vi), and the 900 MHz
+  sub-band rules apply to every link including any LAN (2.c.v). If the team was told
   otherwise, the source is worth finding: it may be a Q&A answer or a team
   rule. Wired is still the better engineering choice. In testing on campus
   Wi-Fi the phone link dropped for 6.5 seconds.
