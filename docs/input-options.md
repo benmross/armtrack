@@ -17,9 +17,16 @@ From the URC 2027 rules:
   $100.
 - Wireless (2.c): the text does not forbid a wireless link inside the control
   station: the 2.4 GHz band is unrestricted (2.c.vi), and the 900 MHz
-  sub-band rules apply to every link including any LAN (2.c.v). If the team was told
-  otherwise, the source is worth finding: it may be a Q&A answer or a team
-  rule. Wired is still the better engineering choice. In testing on campus
+  sub-band rules apply to every link including any LAN (2.c.v). The URC2027 Q&A page,
+  read 6 October 2026, agrees: Rover Q5 forbids *satellite internet* as a data
+  link to the robot, Rover Q11 says there is no internet connection in the
+  field, Rover Q6 refers to "the popular 2.4GHz WiFi" band as something teams
+  use, and Rover Q7 says 5 GHz and above "is not specifically regulated by
+  URC". Nothing there mentions phones, hotspots or cellular. So "no internet"
+  is a fact about the site plus a ban on satellite links, and a local Wi-Fi
+  link with no internet behind it is allowed. A phone *hotspot* is the
+  doubtful case: it is a cellular device, and it may not start at all without
+  cell service. Wired is still the better engineering choice. In testing on campus
   Wi-Fi the phone link dropped for 6.5 seconds.
 
 ## Options
@@ -41,11 +48,14 @@ marker's true size fixes the distance. That is the difference from tracking a
 bare hand with one camera, where distance had to be guessed from how big the
 hand looked. Two marked jaws give grip width as well.
 
-Hello Robot sells this as its Dexterous Teleop Kit for the Stretch robot:
+Hello Robot sells this as its Dexterous Teleop Kit for the Stretch robot, at
+$295:
 kitchen tongs with ArUco markers, a Logitech C930e webcam on a stand looking
 up, and a ring light so the markers stay sharp during fast motion. Position
 drives the arm through inverse kinematics, orientation drives the wrist, and
-tong width drives the gripper. The software is open source.
+tong width drives the gripper. The software is open source, so the kit's price buys the
+assembled parts and nothing that cannot be put together from an ordinary
+webcam, a ring light, tongs and printed markers.
 
 For this project it reuses the arm controller and the 3-D view unchanged, and
 OpenCV's ArUco detector is already a dependency. The rover team already
@@ -88,6 +98,8 @@ needs no new arm code. Keep the SpaceMouse in mind as the fallback.
 
 ## Sources
 
+- https://urc.marssociety.org/home/requirements-guidelines/qa
+- https://hello-stretch3.com/stretch-dex-teleop-kit
 - https://www.adafruit.com/product/5758
 - https://github.com/hello-robot/stretch_dex_teleop
 - https://hello-robot.com/stretch-dex-teleop-kit
