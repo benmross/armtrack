@@ -254,25 +254,44 @@ class GripLink:
 
 # ---- printables --------------------------------------------------------------
 
-def render_markers(out: str, cube: Cube = Cube(), dpi: int = 300) -> None:
-    """A letter page with the five face markers at exact size, each in a cut square the size of a face."""
+def render_markers(out: str, cube: Cube = Cube(), dpi: int = 300, cut_mm: float | None = None) -> None:
+    """A letter page with the five face markers at exact size, each in a square to cut out.
+
+    The square is 4 mm under the face so it drops into the printed cube's recess;
+    pass cut_mm equal to the side for a homemade cube, whose edges then line the
+    paper up. Writes a PDF (exact scale when printed at 100%) or a PNG."""
     px = lambda mm: int(round(mm / 25.4 * dpi))
     page = np.full((px(279.4), px(215.9)), 255, np.uint8)
     d = cv2.aruco.getPredefinedDictionary(DICT)
-    face, mark = px(cube.side_mm - 4), px(cube.marker_mm)  # fits the printed cube's face recess
+    face, mark = px(cut_mm or cube.side_mm - 4), px(cube.marker_mm)
+    names = ["TOP", "FRONT", "RIGHT", "BACK", "LEFT"]
     for k, mid in enumerate(FACES):
         r, c = divmod(k, 3)
-        y0, x0 = px(20) + r * (face + px(15)), px(12) + c * (face + px(8))
+        y0, x0 = px(24) + r * (face + px(22)), px(12) + c * (face + px(8))
         tile = np.full((face, face), 255, np.uint8)
         o = (face - mark) // 2
         tile[o:o + mark, o:o + mark] = cv2.aruco.generateImageMarker(d, mid, mark, borderBits=1)
-        cv2.rectangle(tile, (0, 0), (face - 1, face - 1), 180, 1)
+        cv2.rectangle(tile, (0, 0), (face - 1, face - 1), 150, 2)
         page[y0:y0 + face, x0:x0 + face] = tile
-        cv2.putText(page, f"id {mid}: {['top', 'front', 'right', 'back', 'left'][mid]}",
-                    (x0, y0 + face + px(5)), cv2.FONT_HERSHEY_SIMPLEX, 1.0, 0, 2)
-    cv2.putText(page, f"Print at 100%. Each black square must measure {cube.marker_mm:g} mm. "
-                f"Cut on the grey lines.", (px(12), px(12)), cv2.FONT_HERSHEY_SIMPLEX, 1.1, 0, 2)
-    cv2.imwrite(out, page, [cv2.IMWRITE_PNG_COMPRESSION, 9])
+        # which way up the square goes: the bottom edge of every side face is toward the handle,
+        # and the top face's bottom edge is toward the back face (the operator)
+        edge = "toward BACK face" if mid == 0 else "toward HANDLE"
+        cv2.putText(page, f"{names[mid]}  (id {mid})", (x0, y0 + face + px(6)), cv2.FONT_HERSHEY_SIMPLEX, 1.0, 0, 2)
+        cv2.putText(page, f"this edge {edge}", (x0, y0 + face + px(12)), cv2.FONT_HERSHEY_SIMPLEX, 0.9, 0, 2)
+    cv2.putText(page, f"Print at 100% (no fit to page). Each black square must measure {cube.marker_mm:g} mm.",
+                (px(12), px(10)), cv2.FONT_HERSHEY_SIMPLEX, 1.0, 0, 2)
+    cv2.putText(page, "Cut on the grey lines. Holding the handle, FRONT faces the way you point and RIGHT is on your right.",
+                (px(12), px(16)), cv2.FONT_HERSHEY_SIMPLEX, 1.0, 0, 2)
+    y = px(265)
+    cv2.line(page, (px(12), y), (px(112), y), 0, 3)  # a 100 mm scale check
+    for mm in range(0, 101, 10):
+        cv2.line(page, (px(12 + mm), y - px(3 if mm % 50 else 5)), (px(12 + mm), y), 0, 2)
+    cv2.putText(page, "100 mm", (px(116), y + px(1)), cv2.FONT_HERSHEY_SIMPLEX, 1.0, 0, 2)
+    if out.lower().endswith(".pdf"):
+        from PIL import Image
+        Image.fromarray(page).save(out, resolution=dpi)
+    else:
+        cv2.imwrite(out, page, [cv2.IMWRITE_PNG_COMPRESSION, 9])
 
 
 # ---- live ---------------------------------------------------------------------

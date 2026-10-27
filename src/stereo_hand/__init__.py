@@ -77,7 +77,8 @@ def main() -> None:
     wm = sub.add_parser("wand-markers", help="write the cube's five face markers as a printable page")
     wm.add_argument("--side-mm", type=float, default=60.0)
     wm.add_argument("--marker-mm", type=float, default=50.0)
-    wm.add_argument("--out", default="wand-markers.png")
+    wm.add_argument("--cut-mm", type=float, help="cut squares this size; the cube's side for a homemade cube")
+    wm.add_argument("--out", default="wand-markers.pdf")
     sub.add_parser("wand-sim", help="measure the wand tracker on rendered images (no hardware)")
 
     dm = sub.add_parser("demo", help="run a scripted pick and place in the 3-D view, no tracker needed")
@@ -128,7 +129,7 @@ def main() -> None:
                  a.width, a.height, a.side_mm, a.marker_mm, a.no_gyro, a.grip_mode)
     elif a.cmd == "wand-markers":
         from .wand import Cube, render_markers
-        render_markers(a.out, Cube(a.side_mm, a.marker_mm))
+        render_markers(a.out, Cube(a.side_mm, a.marker_mm), cut_mm=a.cut_mm)
         print(f"wrote {a.out}. Print at 100% scale and check one black square measures {a.marker_mm:g} mm.")
     elif a.cmd == "wand-sim":
         from .wand_sim import main as sim
