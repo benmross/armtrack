@@ -6,7 +6,9 @@
 //
 // Wiring (Uno or Nano):
 //   GY-521 VCC->5V GND->GND SCL->A5 SDA->A4  (the GY-521 has its own regulator)
-//   trigger potentiometer: ends to 5V and GND, wiper -> A0
+//   gripper: the kit joystick's VRy -> A0 (rate mode, the default on the host),
+//            or a trigger potentiometer's wiper -> A0 (--grip-mode absolute)
+//   home: the joystick's SW pin can replace the D3 button
 //   clutch button  D2 -> GND   (hold to drive the arm; release lets go)
 //   home button    D3 -> GND
 //   fine button    D4 -> GND   (hold for fine, scaled-down motion)

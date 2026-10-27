@@ -62,6 +62,8 @@ def main() -> None:
     wd.add_argument("--side-mm", type=float, default=60.0, help="printed cube edge")
     wd.add_argument("--marker-mm", type=float, default=50.0, help="black square edge as printed, measured")
     wd.add_argument("--no-gyro", action="store_true")
+    wd.add_argument("--grip-mode", choices=["rate", "absolute"], default="rate",
+                    help="rate: the kit joystick opens/closes the gripper; absolute: a trigger potentiometer sets it")
     wd.add_argument("--udp", default="127.0.0.1:5005")
     wd.add_argument("--width", type=int, default=1280)
     wd.add_argument("--height", type=int, default=720)
@@ -113,7 +115,7 @@ def main() -> None:
     elif a.cmd == "wand":
         from .wand import run as run_wand
         run_wand(a.cam, a.serial, a.calib, a.calib_cam, a.hfov, None if a.udp == "off" else a.udp,
-                 a.width, a.height, a.side_mm, a.marker_mm, a.no_gyro)
+                 a.width, a.height, a.side_mm, a.marker_mm, a.no_gyro, a.grip_mode)
     elif a.cmd == "wand-markers":
         from .wand import Cube, render_markers
         render_markers(a.out, Cube(a.side_mm, a.marker_mm))

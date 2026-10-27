@@ -259,7 +259,7 @@ def render_markers(out: str, cube: Cube = Cube(), dpi: int = 300) -> None:
     px = lambda mm: int(round(mm / 25.4 * dpi))
     page = np.full((px(279.4), px(215.9)), 255, np.uint8)
     d = cv2.aruco.getPredefinedDictionary(DICT)
-    face, mark = px(cube.side_mm - 0.6), px(cube.marker_mm)
+    face, mark = px(cube.side_mm - 4), px(cube.marker_mm)  # fits the printed cube's face recess
     for k, mid in enumerate(FACES):
         r, c = divmod(k, 3)
         y0, x0 = px(20) + r * (face + px(15)), px(12) + c * (face + px(8))
@@ -279,7 +279,8 @@ def render_markers(out: str, cube: Cube = Cube(), dpi: int = 300) -> None:
 
 def run(cam: str, port: str | None = None, calib: str | None = "calib.json", calib_cam: int = 2,
         hfov: float = 70.0, udp: str | None = None, width: int = 1280, height: int = 720,
-        side_mm: float = 60.0, marker_mm: float = 50.0, no_gyro: bool = False) -> None:
+        side_mm: float = 60.0, marker_mm: float = 50.0, no_gyro: bool = False,
+        grip_mode: str = "rate") -> None:
     import json
     import socket
 
@@ -301,6 +302,7 @@ def run(cam: str, port: str | None = None, calib: str | None = "calib.json", cal
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) if udp else None
     dest = (udp.rsplit(":", 1)[0], int(udp.rsplit(":", 1)[1])) if udp else None
     key_clutch, engaged_prev, home_prev = False, False, False
+    grip_open, t_prev = 1.0, time.time()
     while True:
         frame, t = src.read()
         if frame is None:
@@ -309,7 +311,14 @@ def run(cam: str, port: str | None = None, calib: str | None = "calib.json", cal
         with grip.lock if grip else threading.Lock():
             got = tracker.frame(gray, t)
             buttons = dict(grip.state) if grip else {"trigger": 0.0, "clutch": key_clutch, "home": False, "fine": False}
-        pose = tracker.pose(t, grip_open=1.0 - buttons["trigger"])
+        if grip_mode == "rate":  # spring-centred joystick: push up to open, down to close
+            push = 2 * buttons["trigger"] - 1
+            if abs(push) > 0.15:
+                grip_open = float(np.clip(grip_open + push * 1.2 * (t - t_prev), 0, 1))
+        else:
+            grip_open = 1.0 - buttons["trigger"]
+        t_prev = t
+        pose = tracker.pose(t, grip_open=grip_open)
         if grip and time.time() - grip.t_rx > HOLD_S:
             buttons["clutch"] = False  # the grip's cable came out: let go
         engaged = buttons["clutch"] and pose is not None
