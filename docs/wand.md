@@ -170,3 +170,10 @@ the default 4-pixel limit. Increasing the limit accepts less accurate poses;
 use it to test the demo and check for jumps before engaging the clutch.
 The default remains 4 pixels. A rejected frame still expires after 0.25 seconds
 without an accepted fix.
+
+Wand translation stays aligned with the camera across clutch strokes: moving
+closer to the camera extends the arm, farther away retracts it, and moving up
+raises it. Rotating the cube changes wrist orientation, without changing those
+movement directions. Press x, reposition the cube, then z to take another
+stroke. Press h in the camera window to release the keyboard clutch and return
+to the home pose at the normal joint speeds.

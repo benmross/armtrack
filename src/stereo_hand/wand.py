@@ -316,7 +316,6 @@ def run(cam: str, port: str | None = None, calib: str | None = "calib.json", cal
     from .arm import ArmController
     from .cameras import Source
     from .mono import intrinsics
-    from .phone import heading_frame
     from .viewer import Viewer
 
     src = Source(cam, width, height)
@@ -326,7 +325,7 @@ def run(cam: str, port: str | None = None, calib: str | None = "calib.json", cal
     grip = GripLink(port, tracker) if port else None
     if grip:
         print("keep the wand still for one second while the gyro bias is measured")
-    print("Hold the clutch (or z/x on the keyboard without a grip) to drive the arm; q quits.")
+    print("z engages, x releases, h releases and returns home; q quits. Move toward the camera to extend, away to retract.")
     arm, view = ArmController(frame="camera"), Viewer()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) if udp else None
     dest = (udp.rsplit(":", 1)[0], int(udp.rsplit(":", 1)[1])) if udp else None
@@ -358,7 +357,6 @@ def run(cam: str, port: str | None = None, calib: str | None = "calib.json", cal
         if engaged:
             arm.set_scale(0.6 if buttons["fine"] else arm.spec.scale, pose)
         if engaged and not engaged_prev:
-            arm.M = heading_frame({"rotation": (CAM_Y_UP @ np.array(pose["rotation"])).tolist()}, arm.M) @ CAM_Y_UP
             arm.engage(pose)
         elif not engaged and engaged_prev:
             arm.release()
@@ -392,9 +390,9 @@ def run(cam: str, port: str | None = None, calib: str | None = "calib.json", cal
             key_clutch = True
         if k == ord("x"):
             key_clutch = False
+        if k == ord("h"):
+            key_clutch = False
+            arm.go_home()
     src.close()
     cv2.destroyAllWindows()
 
-
-# camera frame (y down, z forward) -> a y-up frame like ARKit's, so heading_frame can be reused
-CAM_Y_UP = np.array([[1.0, 0, 0], [0, -1, 0], [0, 0, -1]])

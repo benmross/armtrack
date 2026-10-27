@@ -117,3 +117,37 @@ def test_cube_fit_tolerance_and_diagnostics(monkeypatch):
     monkeypatch.setattr(solver, 'detect', lambda _: [])
     assert solver.solve(gray) is None
     assert solver.diagnostic == {'state': 'no markers', 'reproj_px': None}
+
+
+def test_reclutch_with_rotated_cube_keeps_camera_directions_and_home(monkeypatch):
+    """Turning the cube between clutch strokes must not reverse pullback."""
+    import cv2
+    from stereo_hand import cameras, viewer, wand
+    from stereo_hand.arm import HOME_TIP
+
+    states = []
+    images = iter((np.zeros((720, 1280, 3), np.uint8), i / 30) for i in range(8))
+    class Source:
+        size = (1280, 720)
+        def __init__(self, *args): pass
+        def read(self): return next(images, (None, 0))
+        def close(self): pass
+    class View:
+        def publish(self, state): states.append(state)
+    monkeypatch.setattr(cameras, 'Source', Source)
+    monkeypatch.setattr(viewer, 'Viewer', View)
+    depths = iter([500, 500, 400, 300, 300, 500, 500, 500])
+    pointing_at_camera = np.array([[1., 0, 0], [0, 0, 1], [0, -1, 0]])
+    pointing_away = pointing_at_camera.T
+    rotations = iter([pointing_at_camera] * 4 + [pointing_away] * 4)
+    monkeypatch.setattr(wand.CubeSolver, 'solve', lambda *args: (next(rotations), np.array([0., 0., next(depths)]), 2, 0.5))
+    keys = iter([ord('z'), -1, ord('x'), ord('z'), -1, ord('h'), -1, ord('q')])
+    monkeypatch.setattr(cv2, 'waitKey', lambda *args: next(keys))
+    monkeypatch.setattr(cv2, 'imshow', lambda *args: None)
+    monkeypatch.setattr(cv2, 'destroyAllWindows', lambda: None)
+    wand.run('0', calib=None, udp=None)
+    assert states[2]['target_tip_m'][0] > HOME_TIP[0] + 0.24
+    assert np.allclose(states[4]['target_tip_m'], states[2]['target_tip_m'])
+    assert states[5]['target_tip_m'][0] < states[4]['target_tip_m'][0] - 0.49
+    assert np.allclose(states[6]['target_tip_m'], HOME_TIP)
+    assert not states[6]['engaged'] and not states[7]['engaged']
