@@ -68,6 +68,7 @@ def main() -> None:
     wd.add_argument("--hfov", type=float, default=70.0)
     wd.add_argument("--side-mm", type=float, default=60.0, help="printed cube edge")
     wd.add_argument("--marker-mm", type=float, default=50.0, help="black square edge as printed, measured")
+    wd.add_argument("--max-reproj-px", type=float, default=4.0, help="maximum cube fit error in pixels; try 8 for a cardboard demo")
     wd.add_argument("--no-gyro", action="store_true")
     wd.add_argument("--grip-mode", choices=["rate", "absolute"], default="rate",
                     help="rate: the kit joystick opens/closes the gripper; absolute: a trigger potentiometer sets it")
@@ -126,7 +127,7 @@ def main() -> None:
     elif a.cmd == "wand":
         from .wand import run as run_wand
         run_wand(a.cam, a.serial, a.calib, a.calib_cam, a.hfov, None if a.udp == "off" else a.udp,
-                 a.width, a.height, a.side_mm, a.marker_mm, a.no_gyro, a.grip_mode)
+                 a.width, a.height, a.side_mm, a.marker_mm, a.no_gyro, a.grip_mode, a.max_reproj_px)
     elif a.cmd == "wand-markers":
         from .wand import Cube, render_markers
         render_markers(a.out, Cube(a.side_mm, a.marker_mm), cut_mm=a.cut_mm)

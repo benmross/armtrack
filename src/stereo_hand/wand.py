@@ -91,7 +91,12 @@ def _log(R: np.ndarray) -> np.ndarray:
 class CubeSolver:
     """Image -> wand pose in the camera frame."""
 
-    def __init__(self, K: np.ndarray, d: np.ndarray, cube: Cube = Cube()):
+    def __init__(self, K: np.ndarray, d: np.ndarray, cube: Cube = Cube(), max_reproj_px: float = MAX_REPROJ_PX):
+        if not math.isfinite(max_reproj_px) or max_reproj_px <= 0:
+            raise ValueError("max_reproj_px must be finite and positive")
+        self.max_reproj_px = max_reproj_px
+        self.seen = []
+        self.diagnostic = {"state": "no markers", "reproj_px": None}
         self.K, self.d, self.cube = K, np.asarray(d, float), cube
         params = cv2.aruco.DetectorParameters()
         params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
@@ -108,7 +113,8 @@ class CubeSolver:
 
         `predict` is the expected rotation (from the gyro or the last frame); it
         picks between the two fits of a lone marker and seeds the solver."""
-        seen = self.detect(gray)
+        seen = self.seen = self.detect(gray)
+        self.diagnostic = {"state": "no markers" if not seen else "solve failed", "reproj_px": None}
         if not seen:
             return None
         obj = np.concatenate([self.cube.corners(i) for i, _ in seen]).astype(np.float64)
@@ -116,6 +122,8 @@ class CubeSolver:
         if len(seen) == 1:
             n, rvecs, tvecs, errs = cv2.solvePnPGeneric(obj, img, self.K, self.d, flags=cv2.SOLVEPNP_IPPE)
             cands = [(cv2.Rodrigues(r)[0], t, float(e)) for r, t, e in zip(rvecs, tvecs, np.ravel(errs))]
+            if not cands:
+                return None
             if predict is not None:
                 R, t, _ = min(cands, key=lambda c: _rotation_angle(c[0], predict))
             else:
@@ -128,7 +136,9 @@ class CubeSolver:
         rvec, t = cv2.solvePnPRefineLM(obj, img, self.K, self.d, rvec, t)
         proj = cv2.projectPoints(obj, rvec, t, self.K, self.d)[0].reshape(-1, 2)
         err = float(np.sqrt(np.mean(np.sum((proj - img) ** 2, axis=1))))
-        if err > MAX_REPROJ_PX:
+        valid = math.isfinite(err) and np.all(np.isfinite(t)) and t.ravel()[2] > 0
+        self.diagnostic = {"state": "accepted" if valid and err <= self.max_reproj_px else "rejected", "reproj_px": err}
+        if not valid or err > self.max_reproj_px:
             return None
         return cv2.Rodrigues(rvec)[0], t.ravel(), len(seen), err
 
@@ -299,7 +309,7 @@ def render_markers(out: str, cube: Cube = Cube(), dpi: int = 300, cut_mm: float 
 def run(cam: str, port: str | None = None, calib: str | None = "calib.json", calib_cam: int = 2,
         hfov: float = 70.0, udp: str | None = None, width: int = 1280, height: int = 720,
         side_mm: float = 60.0, marker_mm: float = 50.0, no_gyro: bool = False,
-        grip_mode: str = "rate") -> None:
+        grip_mode: str = "rate", max_reproj_px: float = MAX_REPROJ_PX) -> None:
     import json
     import socket
 
@@ -312,7 +322,7 @@ def run(cam: str, port: str | None = None, calib: str | None = "calib.json", cal
     src = Source(cam, width, height)
     K, d, note = intrinsics(src.size, calib, calib_cam, hfov)
     print(note)
-    tracker = WandTracker(CubeSolver(K, d, Cube(side_mm, marker_mm)), use_gyro=not no_gyro and port is not None)
+    tracker = WandTracker(CubeSolver(K, d, Cube(side_mm, marker_mm), max_reproj_px), use_gyro=not no_gyro and port is not None)
     grip = GripLink(port, tracker) if port else None
     if grip:
         print("keep the wand still for one second while the gyro bias is measured")
@@ -363,6 +373,17 @@ def run(cam: str, port: str | None = None, calib: str | None = "calib.json", cal
         vis = frame.copy()
         if got:
             cv2.drawFrameAxes(vis, K, d, cv2.Rodrigues(got[0])[0], got[1], side_mm)
+        diag = tracker.solver.diagnostic
+        color = (0, 200, 0) if got else (0, 180, 255)
+        for mid, corners in tracker.solver.seen:
+            cv2.polylines(vis, [np.rint(corners).astype(np.int32)], True, color, 2)
+            cv2.putText(vis, str(mid), tuple(np.rint(corners[0]).astype(int)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+        error = diag["reproj_px"]
+        fit = "n/a" if error is None else f"{error:.1f}px"
+        status = "fresh" if got else ("held" if pose is not None else "lost")
+        label = f"{status}: {diag['state']} | {len(tracker.solver.seen)} faces | fit {fit} / {tracker.solver.max_reproj_px:.1f}px"
+        cv2.rectangle(vis, (0, 0), (vis.shape[1], 38), (0, 0, 0), -1)
+        cv2.putText(vis, label, (10, 26), cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2)
         cv2.imshow("wand", cv2.resize(vis, (800, int(vis.shape[0] * 800 / vis.shape[1]))))
         k = cv2.waitKey(1) & 0xFF
         if k in (ord("q"), 27):

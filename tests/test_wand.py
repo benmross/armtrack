@@ -91,3 +91,29 @@ def test_live_loop_drives_arm_from_video(tmp_path, monkeypatch):
     assert len(engaged) >= 26
     moved = np.linalg.norm(np.array(engaged[-1]) - np.array(engaged[0]))
     assert 0.2 < moved < 0.35  # about 115 mm of wand travel at 2.5x
+
+
+def test_cube_fit_tolerance_and_diagnostics(monkeypatch):
+    """A warped face can decode yet fail the cube fit; a demo tolerance is explicit."""
+    import cv2
+    rng = np.random.default_rng(18)
+    cube, K = Cube(), camera()
+    R, t = random_pose(rng, 650)
+    solver = CubeSolver(K, np.zeros(5), cube)
+    gray = render(cube, R, t, K, rng)
+    seen = solver.detect(gray)
+    assert len(seen) >= 2
+    seen = [(mid, pts.copy()) for mid, pts in seen]
+    seen[0][1][0] += [12, -8]
+    monkeypatch.setattr(solver, 'detect', lambda _: seen)
+    solver.max_reproj_px = 0.1
+    assert solver.solve(gray) is None
+    assert solver.diagnostic['state'] == 'rejected'
+    error = solver.diagnostic['reproj_px']
+    assert error > 0.1
+    solver.max_reproj_px = error + 0.5
+    assert solver.solve(gray) is not None
+    assert solver.diagnostic['state'] == 'accepted'
+    monkeypatch.setattr(solver, 'detect', lambda _: [])
+    assert solver.solve(gray) is None
+    assert solver.diagnostic == {'state': 'no markers', 'reproj_px': None}

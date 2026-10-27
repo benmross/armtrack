@@ -160,3 +160,13 @@ which removes the depth error. The total stays far under $500.
   software-urc4 converts between them yet.
 - Whether the base station can host one more USB camera pointed at the
   operator, and where it would sit in the control station.
+
+For a cardboard demo, run `uv run stereo-hand wand --cam 0 --max-reproj-px 8`.
+The camera window shows detected marker outlines and IDs, the current cube fit
+error and its limit, and whether the pose is fresh, briefly held, or lost.
+Markers can decode while their combined pose is rejected: the solver assumes
+flat faces at right angles with centred markers. A handmade cube can exceed
+the default 4-pixel limit. Increasing the limit accepts less accurate poses;
+use it to test the demo and check for jumps before engaging the clutch.
+The default remains 4 pixels. A rejected frame still expires after 0.25 seconds
+without an accepted fix.
