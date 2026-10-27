@@ -53,6 +53,24 @@ def main() -> None:
     ph.add_argument("--udp", help="also forward the arm's joint angles here, host:port")
     ph.add_argument("--view-port", type=int, default=8765, help="port for the 3-D view in the browser")
 
+    wd = sub.add_parser("wand", help="drive the arm with the marker-cube wand and one webcam")
+    wd.add_argument("--cam", default="0")
+    wd.add_argument("--serial", help="the grip's Arduino, e.g. /dev/ttyACM0 or /dev/cu.usbmodem*; omit for camera only")
+    wd.add_argument("--calib", default="calib.json")
+    wd.add_argument("--calib-cam", type=int, choices=[1, 2], default=1)
+    wd.add_argument("--hfov", type=float, default=70.0)
+    wd.add_argument("--side-mm", type=float, default=60.0, help="printed cube edge")
+    wd.add_argument("--marker-mm", type=float, default=50.0, help="black square edge as printed, measured")
+    wd.add_argument("--no-gyro", action="store_true")
+    wd.add_argument("--udp", default="127.0.0.1:5005")
+    wd.add_argument("--width", type=int, default=1280)
+    wd.add_argument("--height", type=int, default=720)
+    wm = sub.add_parser("wand-markers", help="write the cube's five face markers as a printable page")
+    wm.add_argument("--side-mm", type=float, default=60.0)
+    wm.add_argument("--marker-mm", type=float, default=50.0)
+    wm.add_argument("--out", default="wand-markers.png")
+    sub.add_parser("wand-sim", help="measure the wand tracker on rendered images (no hardware)")
+
     dm = sub.add_parser("demo", help="run a scripted pick and place in the 3-D view, no tracker needed")
     dm.add_argument("--view-port", type=int, default=8765)
 
@@ -92,6 +110,17 @@ def main() -> None:
     elif a.cmd == "phone":
         from .phone import run as run_phone
         run_phone(a.port, a.udp, a.view_port)
+    elif a.cmd == "wand":
+        from .wand import run as run_wand
+        run_wand(a.cam, a.serial, a.calib, a.calib_cam, a.hfov, None if a.udp == "off" else a.udp,
+                 a.width, a.height, a.side_mm, a.marker_mm, a.no_gyro)
+    elif a.cmd == "wand-markers":
+        from .wand import Cube, render_markers
+        render_markers(a.out, Cube(a.side_mm, a.marker_mm))
+        print(f"wrote {a.out}. Print at 100% scale and check one black square measures {a.marker_mm:g} mm.")
+    elif a.cmd == "wand-sim":
+        from .wand_sim import main as sim
+        sim()
     elif a.cmd == "demo":
         from .demo import run as run_demo
         run_demo(a.view_port)
