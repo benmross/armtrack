@@ -242,3 +242,45 @@ def track(cam1: str, cam2: str, calib_path: str, udp: str | None = None, hand: s
                 print(f"recording to recordings/{stamp}-cam*.mp4")
     d1.close(); d2.close(); s1.close(); s2.close()
     cv2.destroyAllWindows()
+
+
+def calibrate_lens(cam: str, square_mm: float, out: str, target: int = 25,
+                   width: int = 1280, height: int = 720) -> None:
+    """One camera's lens alone, for the wand, which needs no second camera."""
+    from .calib import _mono
+    src = Source(cam, width, height)
+    det = Detector(square_mm)
+    samples: list = []
+    prev = last = None
+    last_t = 0.0
+    print(f"Move the board slowly through the view: near, far, tilted, every corner. "
+          f"{target} still views are taken automatically; Enter solves early, q quits.")
+    while len(samples) < target:
+        frame, _ = src.read()
+        if frame is None:
+            break
+        r = det.detect(frame)
+        still = _still(prev, r, 0.004 * src.size[0])
+        prev = r
+        if r is not None and still and _moved(last, r) and time.time() - last_t > 0.6:
+            samples.append(r)
+            last, last_t = r, time.time()
+        v = frame.copy()
+        if r is not None:
+            for p in r[1]:
+                cv2.circle(v, (int(p[0]), int(p[1])), 3, (0, 255, 0), -1)
+        cv2.putText(v, f"{len(samples)}/{target}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 255), 2)
+        cv2.imshow("lens calibration", v)
+        k = cv2.waitKey(1) & 0xFF
+        if k in (ord("q"), 27):
+            src.close()
+            return
+        if k == 13:
+            break
+    src.close()
+    cv2.destroyAllWindows()
+    if len(samples) < 8:
+        raise SystemExit(f"only {len(samples)} views; need at least 8")
+    rms, K, d = _mono(det.all_obj, samples, src.size)
+    Path(out).write_text(json.dumps({"K": K.tolist(), "d": d.ravel().tolist(), "size": list(src.size), "rms_px": rms}))
+    print(f"wrote {out}: {len(samples)} views, reprojection {rms:.2f} px (under 0.5 is good)")

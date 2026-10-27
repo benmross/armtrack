@@ -37,6 +37,12 @@ from .viz import View3D, draw_2d
 def intrinsics(size: tuple[int, int], calib: str | None, calib_cam: int, hfov: float):
     """Lens from a stereo calibration if one exists for this camera, else a guess from the field of view."""
     w, h = size
+    if calib and Path(calib).exists() and "K" in json.loads(Path(calib).read_text()):
+        raw = json.loads(Path(calib).read_text())  # a single-camera lens file from `stereo-hand lens`
+        K, csize = np.array(raw["K"], dtype=float), tuple(raw["size"])
+        if abs(csize[0] / csize[1] - w / h) < 0.01:
+            K[:2] *= w / csize[0]
+            return K, np.array(raw["d"], dtype=float), f"lens from {calib}"
     if calib and Path(calib).exists():
         cal = Calibration.load(calib)
         K, d, csize = (cal.K1, cal.d1, cal.size1) if calib_cam == 1 else (cal.K2, cal.d2, cal.size2)

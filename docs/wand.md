@@ -143,10 +143,9 @@ which removes the depth error. The total stays far under $500.
 ## To try with the hardware
 
 1. Print the cube and markers. Check one black square measures 50.0 mm.
-2. Run `stereo-hand wand --cam 0 --hfov <the webcam's field of view>` with
-   no grip. The keyboard's z and x act as the clutch. A guessed lens costs
-   depth accuracy; `calibrate` currently needs two cameras, so a
-   single-camera lens calibration is the next thing to write.
+2. Print the ChArUco board (`stereo-hand board`), run `stereo-hand lens
+   --cam 0 --square-mm <measured>` once, then `stereo-hand wand --cam 0`
+   with no grip. The keyboard's z and x act as the clutch.
 3. Wire the GY-521, joystick and buttons per the firmware's header comment,
    flash it, and add `--serial /dev/ttyACM0`. Hold the wand still for the
    first second while the gyro bias is measured.

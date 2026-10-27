@@ -53,10 +53,17 @@ def main() -> None:
     ph.add_argument("--udp", help="also forward the arm's joint angles here, host:port")
     ph.add_argument("--view-port", type=int, default=8765, help="port for the 3-D view in the browser")
 
+    ln = sub.add_parser("lens", help="calibrate one camera's lens with the ChArUco board (for the wand)")
+    ln.add_argument("--cam", default="0")
+    ln.add_argument("--square-mm", type=float, required=True)
+    ln.add_argument("--out", default="lens.json")
+    ln.add_argument("--width", type=int, default=1280)
+    ln.add_argument("--height", type=int, default=720)
+
     wd = sub.add_parser("wand", help="drive the arm with the marker-cube wand and one webcam")
     wd.add_argument("--cam", default="0")
     wd.add_argument("--serial", help="the grip's Arduino, e.g. /dev/ttyACM0 or /dev/cu.usbmodem*; omit for camera only")
-    wd.add_argument("--calib", default="calib.json")
+    wd.add_argument("--calib", default="lens.json", help="lens file from `stereo-hand lens` (or a stereo calib.json)")
     wd.add_argument("--calib-cam", type=int, choices=[1, 2], default=1)
     wd.add_argument("--hfov", type=float, default=70.0)
     wd.add_argument("--side-mm", type=float, default=60.0, help="printed cube edge")
@@ -112,6 +119,9 @@ def main() -> None:
     elif a.cmd == "phone":
         from .phone import run as run_phone
         run_phone(a.port, a.udp, a.view_port)
+    elif a.cmd == "lens":
+        from .app import calibrate_lens
+        calibrate_lens(a.cam, a.square_mm, a.out, width=a.width, height=a.height)
     elif a.cmd == "wand":
         from .wand import run as run_wand
         run_wand(a.cam, a.serial, a.calib, a.calib_cam, a.hfov, None if a.udp == "off" else a.udp,
