@@ -9,7 +9,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from .board import Detector
+from armtrack.vision.board import Detector
 
 
 @dataclass

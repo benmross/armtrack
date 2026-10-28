@@ -1,6 +1,6 @@
 """Bridge the operator-side arm model to the rover's joint_trajectory_controller.
 
-Runs on the base station. `stereo-hand wand` (or `phone`, or `mono`) already
+Runs on the base station. `armtrack wand` (or `phone`, or `mono`) already
 runs clutch, inverse kinematics and per-joint speed limits, and sends the
 resulting joint angles as JSON over UDP. This node turns each packet into a
 one-point JointTrajectory for the controller the team's arm bringup already

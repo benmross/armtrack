@@ -12,8 +12,8 @@ import time
 
 import numpy as np
 
-from .arm import HOME_PITCH, HOME_TIP, ArmController
-from .viewer import Viewer
+from armtrack.arm.kinematics import HOME_PITCH, HOME_TIP, ArmController
+from armtrack.arm.viewer import Viewer
 
 # tip (m), tool pitch (deg), roll (deg), gripper (1 open, 0 closed), dwell (s), label
 SCRIPT = [

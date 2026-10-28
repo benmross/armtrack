@@ -20,8 +20,8 @@ import time
 
 import numpy as np
 
-from .arm import ArmController
-from .viewer import Viewer
+from armtrack.arm.kinematics import ArmController
+from armtrack.arm.viewer import Viewer
 
 
 def phone_pose(msg: dict) -> dict:

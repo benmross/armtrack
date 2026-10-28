@@ -23,6 +23,33 @@ wheels = [
 ]
 
 [[package]]
+name = "armtrack"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "mediapipe" },
+    { name = "numpy" },
+    { name = "opencv-contrib-python" },
+    { name = "pyserial" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "mediapipe", specifier = "==0.10.21" },
+    { name = "numpy" },
+    { name = "opencv-contrib-python", specifier = ">=4.8" },
+    { name = "pyserial", specifier = ">=3.5" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.1.1" }]
+
+[[package]]
 name = "attrs"
 version = "26.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -981,30 +1008,3 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/8d/3e/cbc593c31a5f0d817b3fe97e64aa8461bd0f55cb07b67ce1b776296ae336/sounddevice-0.5.6-py3-none-win_amd64.whl", hash = "sha256:7f4162f514f007b0bf25a3ccfed3f1705bc2ec311888a90232729eec4f57a4f4", size = 1009630, upload-time = "2026-08-17T07:55:02.088Z" },
     { url = "https://files.pythonhosted.org/packages/60/a4/b0c21c9f215a6fd9606b8f8748c21212dc098e5d5a2d93068c50edcf19b4/sounddevice-0.5.6-py3-none-win_arm64.whl", hash = "sha256:c8ae19173e5f27f8c12d4b5eee2dbfe542cee125d591e663e0fb4dfb75246d45", size = 1009630, upload-time = "2026-08-17T07:55:03.689Z" },
 ]
-
-[[package]]
-name = "stereo-hand"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "mediapipe" },
-    { name = "numpy" },
-    { name = "opencv-contrib-python" },
-    { name = "pyserial" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "mediapipe", specifier = "==0.10.21" },
-    { name = "numpy" },
-    { name = "opencv-contrib-python", specifier = ">=4.8" },
-    { name = "pyserial", specifier = ">=3.5" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.1.1" }]

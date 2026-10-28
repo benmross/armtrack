@@ -45,7 +45,7 @@ the cube for more than a quarter second, the controller lets go of the arm.
 
 ## Measured so far (no hardware)
 
-`stereo-hand wand-sim` renders the cube at known poses into 1280x720 frames
+`armtrack wand-sim` renders the cube at known poses into 1280x720 frames
 from a 70-degree webcam, adds sensor noise and motion blur, and runs the real
 tracking code on them. These are therefore the best case the geometry allows.
 A real camera adds lens calibration error.
@@ -82,11 +82,11 @@ had drifted to 7.5° by the end.
 
 All of it is in this repository, on top of the existing arm model.
 
-- `src/stereo_hand/wand.py`: marker detection, a joint solve over every
+- `src/armtrack/tracking/wand.py`: marker detection, a joint solve over every
   visible corner, gyro fusion, the serial reader for the grip, and
-  `stereo-hand wand`, the live loop that drives the 3-D arm view and sends
+  `armtrack wand`, the live loop that drives the 3-D arm view and sends
   the arm's joint angles over UDP.
-- `src/stereo_hand/wand_sim.py`: the measurements above.
+- `src/armtrack/tracking/wand_sim.py`: the measurements above.
 - `firmware/wand_grip/wand_grip.ino`: reads the MPU-6050, joystick and
   buttons, and sends checksummed 22-byte packets at 200 Hz. It compiles for
   an Uno (14% of flash) and a Nano.
@@ -96,7 +96,7 @@ All of it is in this repository, on top of the existing arm model.
   flat for the kit's joystick module under the thumb, and a pocket for a
   12 mm button under the index finger. These dimensions are first guesses
   and need one test print.
-- `stereo-hand wand-markers` writes the printable page of markers.
+- `armtrack wand-markers` writes the printable page of markers.
 - `ros/arm_bridge.py`: a ROS 2 node that turns those joint angles into
   `JointTrajectory` targets for the `joint_trajectory_controller` the arm
   bringup already configures. `ros/mock_arm.sh` starts software-urc4's own
@@ -124,7 +124,7 @@ which removes the depth error. The total stays far under $500.
 
 ## Alternatives considered
 
-- **Bare-hand tracking** (the first stereo-hand prototype, MediaPipe): no
+- **Bare-hand tracking** (the first prototype, two-camera stereo, MediaPipe): no
   held object, but landmark jitter is several millimetres and depth from one
   camera depends on hand size.
 - iPhone (Arm Pilot): already works and tracks well, but it counts at
@@ -143,8 +143,8 @@ which removes the depth error. The total stays far under $500.
 ## To try with the hardware
 
 1. Print the cube and markers. Check one black square measures 50.0 mm.
-2. Print the ChArUco board (`stereo-hand board`), run `stereo-hand lens
-   --cam 0 --square-mm <measured>` once, then `stereo-hand wand --cam 0`
+2. Print the ChArUco board (`armtrack board`), run `armtrack lens
+   --cam 0 --square-mm <measured>` once, then `armtrack wand --cam 0`
    with no grip. The keyboard's z and x act as the clutch.
 3. Wire the GY-521, joystick and buttons per the firmware's header comment,
    flash it, and add `--serial /dev/ttyACM0`. Hold the wand still for the
@@ -161,7 +161,7 @@ which removes the depth error. The total stays far under $500.
 - Whether the base station can host one more USB camera pointed at the
   operator, and where it would sit in the control station.
 
-For a cardboard demo, run `uv run stereo-hand wand --cam 0 --max-reproj-px 8`.
+For a cardboard demo, run `uv run armtrack wand --cam 0 --max-reproj-px 8`.
 The camera window shows detected marker outlines and IDs, the current cube fit
 error and its limit, and whether the pose is fresh, briefly held, or lost.
 Markers can decode while their combined pose is rejected: the solver assumes

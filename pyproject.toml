@@ -1,7 +1,7 @@
 [project]
-name = "stereo-hand"
+name = "armtrack"
 version = "0.1.0"
-description = "Track a hand in 3-D from two ordinary cameras"
+description = "Track an operator's hand, a held phone or a marker wand, and drive a rover arm with it"
 readme = "README.md"
 authors = [
     { name = "Ben Ross", email = "ben.m.ross08@gmail.com" }
@@ -24,4 +24,4 @@ dev = [
 ]
 
 [project.scripts]
-stereo-hand = "stereo_hand:main"
+armtrack = "armtrack:main"

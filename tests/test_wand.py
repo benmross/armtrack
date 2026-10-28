@@ -3,8 +3,8 @@ import struct
 
 import numpy as np
 
-from stereo_hand.wand import PACKET, Cube, CubeSolver, FACES, WandTracker, parse_packets, _rotation_angle
-from stereo_hand.wand_sim import camera, random_pose, render
+from armtrack.tracking.wand import PACKET, Cube, CubeSolver, FACES, WandTracker, parse_packets, _rotation_angle
+from armtrack.tracking.wand_sim import camera, random_pose, render
 
 
 def packet(g, a, trig, btn, us):
@@ -53,15 +53,15 @@ def test_rendered_cube_solves_to_its_pose():
 
 
 def test_live_loop_drives_arm_from_video(tmp_path, monkeypatch):
-    """The whole `stereo-hand wand` loop on a rendered clip: track every frame, clutch in, the arm follows."""
+    """The whole `armtrack wand` loop on a rendered clip: track every frame, clutch in, the arm follows."""
     import itertools
     import json
     import socket
 
     import cv2
 
-    from stereo_hand import wand
-    from stereo_hand.wand import _exp
+    from armtrack.tracking import wand
+    from armtrack.tracking.wand import _exp
 
     rng = np.random.default_rng(5)
     cube, K = Cube(), camera()
@@ -122,8 +122,10 @@ def test_cube_fit_tolerance_and_diagnostics(monkeypatch):
 def test_reclutch_with_rotated_cube_keeps_camera_directions_and_home(monkeypatch):
     """Turning the cube between clutch strokes must not reverse pullback."""
     import cv2
-    from stereo_hand import cameras, viewer, wand
-    from stereo_hand.arm import HOME_TIP
+    from armtrack.arm import viewer
+    from armtrack.tracking import wand
+    from armtrack.vision import cameras
+    from armtrack.arm.kinematics import HOME_TIP
 
     states = []
     images = iter((np.zeros((720, 1280, 3), np.uint8), i / 30) for i in range(8))

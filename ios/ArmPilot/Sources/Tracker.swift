@@ -44,7 +44,7 @@ final class Tracker: NSObject, ObservableObject, ARSessionDelegate {
     }
 
     /// Wait for a Mac to announce itself. On the phone's own hotspot the Mac's
-    /// router is this phone, so `stereo-hand phone` reaches us with no address
+    /// router is this phone, so `armtrack phone` reaches us with no address
     /// typed; we then answer on the very connection it opened.
     func startListening() {
         guard listener == nil else { return }

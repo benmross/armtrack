@@ -37,7 +37,7 @@ speeds at 30 to 140 degrees a second; the real values are 0.582 m and 29.
 ## What has to be built
 
 1. A bridge node on the base station. A small ROS 2 Python node that
-   contains what `stereo-hand phone` does now (receive the phone, clutch, IK)
+   contains what `armtrack phone` does now (receive the phone, clutch, IK)
    and publishes joint targets to the rover. Send joint *positions*, to the
    position controller that already exists. A position target is safe when the
    radio drops: the arm finishes the last target and stops. The velocity

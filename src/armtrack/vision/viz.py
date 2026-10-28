@@ -8,7 +8,7 @@ from collections import deque
 import cv2
 import numpy as np
 
-from .geometry import HAND_EDGES
+from armtrack.vision.geometry import HAND_EDGES
 
 COLORS = [(80, 200, 255), (255, 160, 80)]
 

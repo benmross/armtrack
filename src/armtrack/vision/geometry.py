@@ -7,7 +7,7 @@ import math
 import cv2
 import numpy as np
 
-from .calib import Calibration
+from armtrack.vision.calib import Calibration
 
 WRIST, THUMB_TIP, INDEX_MCP, INDEX_TIP, MIDDLE_MCP, PINKY_MCP = 0, 4, 5, 8, 9, 17
 

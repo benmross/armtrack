@@ -8,9 +8,9 @@ code, and then a synthetic hand is triangulated and its pose recovered.
 import cv2
 import numpy as np
 
-from stereo_hand.board import Detector, make_board
-from stereo_hand.calib import desk_frame, solve
-from stereo_hand.geometry import hand_pose, match_hands, to_world, triangulate
+from armtrack.vision.board import Detector, make_board
+from armtrack.vision.calib import desk_frame, solve
+from armtrack.vision.geometry import hand_pose, match_hands, to_world, triangulate
 
 SQ = 30.0
 W, H = 1280, 720
@@ -119,7 +119,7 @@ def test_calibration_recovers_rig():
 
 def test_mediapipe_detects_sample(tmp_path):
     import urllib.request
-    from stereo_hand.hands import HandDetector
+    from armtrack.vision.hands import HandDetector
     p = tmp_path / "hands.jpg"
     urllib.request.urlretrieve("https://storage.googleapis.com/mediapipe-tasks/hand_landmarker/woman_hands.jpg", p)
     d = HandDetector(2)

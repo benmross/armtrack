@@ -4,8 +4,8 @@ import math
 
 import numpy as np
 
-from stereo_hand.arm import fk
-from stereo_hand.phone import PhoneArm
+from armtrack.arm.kinematics import fk
+from armtrack.tracking.phone import PhoneArm
 
 
 def _msg(pos, yaw_deg=0.0, pitch_deg=0.0, engaged=True, grip=0):
@@ -109,7 +109,7 @@ def test_fine_mode_moves_a_fifth_as_far_and_switching_does_not_jump():
 
 
 def test_home_button_returns_the_arm_and_needs_a_fresh_hold():
-    from stereo_hand.arm import HOME_TIP
+    from armtrack.arm.kinematics import HOME_TIP
     pa = PhoneArm()
     a = _msg([0, 1, 0]); a["home"] = 0
     b = _msg([0.05, 1.05, -0.08]); b["home"] = 0
@@ -139,7 +139,7 @@ def test_warning_only_while_driving():
 
 def test_gateways_pick_the_real_router_only(monkeypatch):
     import socket
-    from stereo_hand.phone import PAIR_PORT, parse_gateways
+    from armtrack.tracking.phone import PAIR_PORT, parse_gateways
     monkeypatch.setattr(socket, "if_nametoindex", lambda n: {"en0": 14, "en7": 21}[n])
     hotspot = """
 default            192.0.0.1          UGScg                 en0

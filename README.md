@@ -1,18 +1,37 @@
-# stereo-hand
+# armtrack
 
-Track a hand in 3-D from two ordinary cameras, as a proof of concept for
-controlling a rover arm by moving your own arm instead of a scale-model
-controller or a gamepad.
+Ways to drive a rover arm by moving your own hand instead of a gamepad or a
+scale-model controller, built for the UMD Loop team's arm in the University
+Rover Challenge. Each method tracks the operator differently and feeds the
+same arm model, so they can be compared on one 3-D view.
 
-Two cameras look at the same space from different angles (here: a MacBook's
-built-in camera and an iPhone through Continuity Camera, one each side of a
-desk). MediaPipe finds 21 hand landmarks in each image, the two views are
-matched and triangulated using a one-time stereo calibration, and the result is
-a hand pose in millimetres: wrist position, orientation, and how open the grip
-is. Every frame is also sent as one JSON packet over UDP, which is the seam an
-arm controller would plug into.
+![Driving the simulated Loop arm with a held iPhone](docs/media/arm-pilot-demo.gif)
 
-## How it works
+| Tracking | How it measures the operator | Code | Status |
+| --- | --- | --- | --- |
+| Stereo hand | two ordinary cameras, MediaPipe hand landmarks, stereo calibration and triangulation | `tracking/stereo.py` | works; depth noisy on fast motion |
+| Mono hand | one camera, depth from the hand's apparent size (solvePnP on MediaPipe's metric hand model) | `tracking/mono.py` | works; depth only as good as the hand-size estimate |
+| Phone (Arm Pilot) | a held iPhone tracked by ARKit, thumb pad for clutch and gripper | `tracking/phone.py`, `ios/ArmPilot` | recommended; drives the simulated arm (demo above) |
+| Marker wand | a printed ArUco cube on a handle, one webcam, a gyro in the grip | `tracking/wand.py`, `cad/`, `firmware/` | verified in simulation; hardware being built |
+
+## Layout
+
+```text
+src/armtrack/
+  tracking/   one module per way of tracking the operator (above)
+  vision/     shared camera plumbing: capture, ChArUco boards, calibration, hand landmarks, geometry
+  arm/        the arm: kinematics and IK, the three.js viewer, a scripted demo
+ios/ArmPilot/ the iPhone app for phone tracking
+cad/, firmware/  the wand's printable cube and grip, and its gyro firmware
+ros/          the bridge to the rover's joint_trajectory_controller, tested on mock hardware
+docs/         the wand design, the input-device comparison, and what driving the real arm needs
+```
+
+Every mode is a subcommand of one CLI: `uv run armtrack --help`.
+
+## Stereo hand tracking
+
+### How it works
 
 1. **Calibrate once.** Wave a printed ChArUco board through both views. Each
    camera's lens is solved first, then where the cameras sit relative to each
@@ -30,11 +49,11 @@ arm controller would plug into.
    z up), and press `z` to zero at the current hand position so the output is a
    displacement: the natural input for an arm (a clutch, in teleop terms).
 
-## Setup (macOS)
+### Setup (macOS)
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh    # if uv is not installed
-git clone <this repo> && cd stereo-hand
+git clone <this repo> && cd armtrack
 uv sync
 ```
 
@@ -48,21 +67,21 @@ camera. (Fallback: any iPhone "IP camera" app, and pass its stream URL as
 first run asks to let Terminal use the camera. If it never asks: System
 Settings > Privacy & Security > Camera.
 
-## Run
+### Run
 
 ```bash
-uv run stereo-hand cameras                  # a labelled tile per camera: note the indices
-uv run stereo-hand board                    # board.png: print at 100% scale
-uv run stereo-hand calibrate --cam1 0 --cam2 1 --square-mm 35
-uv run stereo-hand track --cam1 0 --cam2 1
-uv run stereo-hand listen                   # in a second terminal: what an arm would receive
+uv run armtrack cameras                  # a labelled tile per camera: note the indices
+uv run armtrack board                    # board.png: print at 100% scale
+uv run armtrack calibrate --cam1 0 --cam2 1 --square-mm 35
+uv run armtrack track --cam1 0 --cam2 1
+uv run armtrack listen                   # in a second terminal: what an arm would receive
 ```
 
 `--square-mm` is the side of one square **as measured with a ruler** on your
 print; printers scale.
 
 **No printer?** Show the board on any screen that is not one of the two
-cameras. `stereo-hand board --screen 2556x1179 --out board-phone.png` fills a
+cameras. `armtrack board --screen 2556x1179 --out board-phone.png` fills a
 screen of that many pixels (that one is an iPhone 15, 15 Pro or 16 in landscape; use the
 device's own resolution). Open it full screen at full brightness, measure a
 square on the glass, and pass that as `--square-mm`. A laptop or tablet is
@@ -80,7 +99,7 @@ well. Wider angles give better depth but less overlap. After calibrating,
 **nothing may move**, including the laptop lid angle. If either camera moves,
 recalibrate.
 
-### Track keys
+#### Track keys
 
 | key | |
 |---|---|
@@ -90,7 +109,7 @@ recalibrate.
 | `a` `d` `w` `s` | spin and tilt the 3-D view; `+` `-` zoom |
 | `q` | quit |
 
-### Output packet (UDP, default `127.0.0.1:5005`)
+#### Output packet (UDP, default `127.0.0.1:5005`)
 
 ```json
 {"t": 1790730000.1, "hand": "Right", "frame": "desk", "reproj_px": 2.1,
@@ -104,10 +123,10 @@ recalibrate.
 toward the fingers, z out of the palm. `grip_open` is 0 when pinched and 1 when
 wide open, normalised by palm size.
 
-## One camera
+## Mono hand tracking
 
 ```bash
-uv run stereo-hand mono --cam 1 --palm-mm 95
+uv run armtrack mono --cam 1 --palm-mm 95
 ```
 
 One camera cannot measure depth, so `mono` infers it from how big the hand
@@ -122,6 +141,13 @@ camera is reused (`--calib-cam`); otherwise the lens is guessed from `--hfov`.
 On a Mac, turn off Center Stage (Control Center > Video Effects): it crops and
 zooms on its own, which changes the lens under the solver's feet.
 
+## Marker wand
+
+A printed ArUco cube on a handle, seen by one calibrated webcam, with a gyro in
+the grip for fast rotation. `uv run armtrack wand-markers` writes the printable
+markers, `armtrack lens` calibrates the camera, and `armtrack wand` runs the live
+loop. Design, measurements and parts: [docs/wand.md](docs/wand.md).
+
 ## The rover arm
 
 Every mode opens a **3-D view in the browser** (http://localhost:8765, opened
@@ -132,7 +158,7 @@ right-drag or shift-drag to pan, scroll to zoom; buttons jump to side, front
 and top views, follow the gripper, or draw its trail. Anyone on the network
 can open the same page, so it can go on a projector.
 
-`uv run stereo-hand demo` runs a scripted pick and place with no tracker, for
+`uv run armtrack demo` runs a scripted pick and place with no tracker, for
 showing the arm on its own.
 
 The control path, in `arm.py`:
@@ -157,14 +183,14 @@ gripper lengths, the pitch joints' ranges and the accelerations in `ArmSpec`
 are still estimates. The joint angles go out in every UDP packet under
 `arm`.
 
-## Phone as the controller (recommended)
+## Phone tracking (Arm Pilot, recommended)
 
 Camera tracking of a bare hand is jittery in depth. Holding an iPhone avoids
 that: ARKit tracks the phone's position and rotation by fusing its camera with
 its motion sensors, so it neither drifts like integrated accelerometer data
 nor jitters like a hand's apparent size.
 
-1. On the Mac: `uv run stereo-hand phone`. It prints this Mac's IP address and
+1. On the Mac: `uv run armtrack phone`. It prints this Mac's IP address and
    opens the 3-D view.
 2. Open `ios/ArmPilot/ArmPilot.xcodeproj` in Xcode, plug in the iPhone, pick it
    as the run destination, and press Run. (First time: Developer Mode on the
@@ -191,7 +217,7 @@ the app shows the tracking state.
 ## Tests
 
 ```bash
-uv run pytest
+uv run pytest tests
 ```
 
 These render the board into two simulated cameras 40 cm apart, calibrate with

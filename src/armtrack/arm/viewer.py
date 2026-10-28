@@ -16,7 +16,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from .arm import ARM, spec_dict
+from armtrack.arm.kinematics import ARM, spec_dict
 
 WEB = Path(__file__).parent / "web"
 

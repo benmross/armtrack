@@ -313,10 +313,10 @@ def run(cam: str, port: str | None = None, calib: str | None = "calib.json", cal
     import json
     import socket
 
-    from .arm import ArmController
-    from .cameras import Source
-    from .mono import intrinsics
-    from .viewer import Viewer
+    from armtrack.arm.kinematics import ArmController
+    from armtrack.vision.cameras import Source
+    from armtrack.tracking.mono import intrinsics
+    from armtrack.arm.viewer import Viewer
 
     src = Source(cam, width, height)
     K, d, note = intrinsics(src.size, calib, calib_cam, hfov)

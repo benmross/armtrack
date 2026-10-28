@@ -24,21 +24,21 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from .board import Detector
-from .calib import Calibration, board_pose, desk_frame
-from .cameras import Source
-from .geometry import MIDDLE_MCP, WRIST, OneEuro, hand_pose
-from .hands import HandDetector
-from .arm import ArmController
-from .viewer import Viewer
-from .viz import View3D, draw_2d
+from armtrack.vision.board import Detector
+from armtrack.vision.calib import Calibration, board_pose, desk_frame
+from armtrack.vision.cameras import Source
+from armtrack.vision.geometry import MIDDLE_MCP, WRIST, OneEuro, hand_pose
+from armtrack.vision.hands import HandDetector
+from armtrack.arm.kinematics import ArmController
+from armtrack.arm.viewer import Viewer
+from armtrack.vision.viz import View3D, draw_2d
 
 
 def intrinsics(size: tuple[int, int], calib: str | None, calib_cam: int, hfov: float):
     """Lens from a stereo calibration if one exists for this camera, else a guess from the field of view."""
     w, h = size
     if calib and Path(calib).exists() and "K" in json.loads(Path(calib).read_text()):
-        raw = json.loads(Path(calib).read_text())  # a single-camera lens file from `stereo-hand lens`
+        raw = json.loads(Path(calib).read_text())  # a single-camera lens file from `armtrack lens`
         K, csize = np.array(raw["K"], dtype=float), tuple(raw["size"])
         if abs(csize[0] / csize[1] - w / h) < 0.01:
             K[:2] *= w / csize[0]
@@ -144,8 +144,8 @@ def run(cam: str, calib: str | None = "calib.json", calib_cam: int = 2, hfov: fl
         text.append(f"{fps:4.1f} fps   one camera   frame {'desk' if desk else 'camera'}")
         v = frame.copy()
         draw_2d(v, [(h[0], h[1]) for h in hands])
-        cv2.imshow("stereo-hand mono: camera", cv2.resize(v, (800, int(v.shape[0] * 800 / v.shape[1]))))
-        cv2.imshow("stereo-hand mono: 3D", view.render(worlds, text))
+        cv2.imshow("armtrack mono: camera", cv2.resize(v, (800, int(v.shape[0] * 800 / v.shape[1]))))
+        cv2.imshow("armtrack mono: 3D", view.render(worlds, text))
         arm_view.publish({**arm_state, "status": ("tracking: " + "one camera" + ("" if arm_state["engaged"] else ", press z to engage"))})
         key = cv2.waitKey(1) & 0xFF
         view.key(key)

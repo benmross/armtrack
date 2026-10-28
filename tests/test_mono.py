@@ -5,9 +5,9 @@ import urllib.request
 import cv2
 import numpy as np
 
-from stereo_hand.geometry import MIDDLE_MCP, WRIST
-from stereo_hand.hands import HandDetector
-from stereo_hand.mono import MonoSolver, intrinsics
+from armtrack.vision.geometry import MIDDLE_MCP, WRIST
+from armtrack.vision.hands import HandDetector
+from armtrack.tracking.mono import MonoSolver, intrinsics
 
 
 def test_pnp_recovers_position(tmp_path):

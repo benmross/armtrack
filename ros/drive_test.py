@@ -6,7 +6,7 @@ import time
 
 import numpy as np
 
-from stereo_hand.arm import ArmController
+from armtrack.arm.kinematics import ArmController
 
 port = int(sys.argv[1]) if len(sys.argv) > 1 else 5005
 arm, sock = ArmController(frame="desk"), socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

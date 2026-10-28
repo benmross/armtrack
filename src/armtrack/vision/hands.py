@@ -13,7 +13,7 @@ from mediapipe.tasks.python import vision
 
 MODEL_URL = ("https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
              "hand_landmarker/float16/latest/hand_landmarker.task")
-MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "hand_landmarker.task"
+MODEL_PATH = Path(__file__).resolve().parents[3] / "models" / "hand_landmarker.task"
 
 
 def ensure_model() -> Path:

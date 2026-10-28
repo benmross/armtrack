@@ -1,4 +1,4 @@
-"""Track a hand in 3-D from two ordinary cameras."""
+"""Track an operator's hand, a held phone or a marker wand, and drive a rover arm with it."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import socket
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(prog="stereo-hand", description=__doc__)
+    p = argparse.ArgumentParser(prog="armtrack", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("cameras", help="show every camera with its index, to find cam1 and cam2")
@@ -63,7 +63,7 @@ def main() -> None:
     wd = sub.add_parser("wand", help="drive the arm with the marker-cube wand and one webcam")
     wd.add_argument("--cam", default="0")
     wd.add_argument("--serial", help="the grip's Arduino, e.g. /dev/ttyACM0 or /dev/cu.usbmodem*; omit for camera only")
-    wd.add_argument("--calib", default="lens.json", help="lens file from `stereo-hand lens` (or a stereo calib.json)")
+    wd.add_argument("--calib", default="lens.json", help="lens file from `armtrack lens` (or a stereo calib.json)")
     wd.add_argument("--calib-cam", type=int, choices=[1, 2], default=1)
     wd.add_argument("--hfov", type=float, default=70.0)
     wd.add_argument("--side-mm", type=float, default=60.0, help="printed cube edge")
@@ -90,7 +90,7 @@ def main() -> None:
 
     a = p.parse_args()
     if a.cmd == "cameras":
-        from .cameras import preview, probe
+        from armtrack.vision.cameras import preview, probe
         found = probe()
         if not found:
             raise SystemExit("No cameras opened. On macOS, give your terminal camera access in "
@@ -99,7 +99,7 @@ def main() -> None:
             print(f"index {i}: {f.shape[1]}x{f.shape[0]}")
         preview([i for i, _ in found])
     elif a.cmd == "board":
-        from .board import render, render_screen
+        from armtrack.vision.board import render, render_screen
         if a.screen:
             w, h = (int(v) for v in a.screen.lower().split("x"))
             render_screen(a.out, w, h)
@@ -110,33 +110,33 @@ def main() -> None:
         print(f"wrote {a.out}. Print at 100% scale (no 'fit to page'), then measure one square "
               "with a ruler and pass that to --square-mm.")
     elif a.cmd == "calibrate":
-        from .app import calibrate
+        from armtrack.tracking.stereo import calibrate
         calibrate(a.cam1, a.cam2, a.square_mm, a.out, a.pairs, a.width, a.height)
     elif a.cmd == "track":
-        from .app import track
+        from armtrack.tracking.stereo import track
         track(a.cam1, a.cam2, a.calib, None if a.udp == "off" else a.udp, a.hand, a.width, a.height, a.hands)
     elif a.cmd == "mono":
-        from .mono import run
+        from armtrack.tracking.mono import run
         run(a.cam, a.calib, a.calib_cam, a.hfov, a.palm_mm, None if a.udp == "off" else a.udp, a.width, a.height)
     elif a.cmd == "phone":
-        from .phone import run as run_phone
+        from armtrack.tracking.phone import run as run_phone
         run_phone(a.port, a.udp, a.view_port)
     elif a.cmd == "lens":
-        from .app import calibrate_lens
+        from armtrack.tracking.stereo import calibrate_lens
         calibrate_lens(a.cam, a.square_mm, a.out, width=a.width, height=a.height)
     elif a.cmd == "wand":
-        from .wand import run as run_wand
+        from armtrack.tracking.wand import run as run_wand
         run_wand(a.cam, a.serial, a.calib, a.calib_cam, a.hfov, None if a.udp == "off" else a.udp,
                  a.width, a.height, a.side_mm, a.marker_mm, a.no_gyro, a.grip_mode, a.max_reproj_px)
     elif a.cmd == "wand-markers":
-        from .wand import Cube, render_markers
+        from armtrack.tracking.wand import Cube, render_markers
         render_markers(a.out, Cube(a.side_mm, a.marker_mm), cut_mm=a.cut_mm)
         print(f"wrote {a.out}. Print at 100% scale and check one black square measures {a.marker_mm:g} mm.")
     elif a.cmd == "wand-sim":
-        from .wand_sim import main as sim
+        from armtrack.tracking.wand_sim import main as sim
         sim()
     elif a.cmd == "demo":
-        from .demo import run as run_demo
+        from armtrack.arm.demo import run as run_demo
         run_demo(a.view_port)
     elif a.cmd == "listen":
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

@@ -32,7 +32,7 @@ def open_capture(src: str | int, width: int = 1280, height: int = 720) -> cv2.Vi
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
     if not cap.isOpened():
         raise SystemExit(
-            f"Could not open camera {src!r}. Run `stereo-hand cameras` to see which "
+            f"Could not open camera {src!r}. Run `armtrack cameras` to see which "
             "indices exist, and check the terminal has camera permission."
         )
     return cap

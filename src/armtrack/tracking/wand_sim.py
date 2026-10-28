@@ -14,7 +14,7 @@ import math
 import cv2
 import numpy as np
 
-from .wand import FACES, Cube, CubeSolver, OrientationFilter, _exp, _rotation_angle
+from armtrack.tracking.wand import FACES, Cube, CubeSolver, OrientationFilter, _exp, _rotation_angle
 
 W, H, HFOV = 1280, 720, 70.0
 

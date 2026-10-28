@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 
-from stereo_hand.arm import ARM, ArmController, JointMotion, clamp_target, fk, ik, solve_ik
+from armtrack.arm.kinematics import ARM, ArmController, JointMotion, clamp_target, fk, ik, solve_ik
 
 LIM = np.radians(np.array(ARM.limits_deg))
 

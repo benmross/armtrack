@@ -28,7 +28,7 @@ def render(path: str, square_mm: float = 35.0, dpi: int = 300) -> None:
     w = int((SQUARES[0] * square_mm + 2 * margin_mm) * px_per_mm)
     h = int((SQUARES[1] * square_mm + 2 * margin_mm) * px_per_mm)
     img = board.generateImage((w, h), marginSize=int(margin_mm * px_per_mm))
-    note = f"stereo-hand ChArUco {SQUARES[0]}x{SQUARES[1]}  square {square_mm:g} mm at 100% scale"
+    note = f"armtrack ChArUco {SQUARES[0]}x{SQUARES[1]}  square {square_mm:g} mm at 100% scale"
     cv2.putText(img, note, (int(margin_mm * px_per_mm), h - int(3 * px_per_mm)),
                 cv2.FONT_HERSHEY_SIMPLEX, 1.2, 0, 2)
     cv2.imwrite(path, img)

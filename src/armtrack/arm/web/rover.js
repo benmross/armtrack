@@ -1,5 +1,5 @@
 // The Loop rover and its arm, built procedurally from photos, driven live by
-// stereo-hand over Server-Sent Events. World is z-up, metres, origin at the
+// armtrack over Server-Sent Events. World is z-up, metres, origin at the
 // top of the arm's turret on the chassis. Joint conventions match arm.py fk():
 // yaw about z, then shoulder/elbow/wrist pitch as elevation in the arm plane,
 // then wrist roll about the gripper's approach axis.

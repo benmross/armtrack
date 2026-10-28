@@ -11,14 +11,14 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from .board import Detector
-from .calib import Calibration, board_pose, desk_frame, solve
-from .cameras import Source
-from .geometry import OneEuro, hand_pose, match_hands, to_world
-from .hands import HandDetector
-from .arm import ArmController
-from .viewer import Viewer
-from .viz import View3D, draw_2d
+from armtrack.vision.board import Detector
+from armtrack.vision.calib import Calibration, board_pose, desk_frame, solve
+from armtrack.vision.cameras import Source
+from armtrack.vision.geometry import OneEuro, hand_pose, match_hands, to_world
+from armtrack.vision.hands import HandDetector
+from armtrack.arm.kinematics import ArmController
+from armtrack.arm.viewer import Viewer
+from armtrack.vision.viz import View3D, draw_2d
 
 
 def _side_by_side(f1: np.ndarray, f2: np.ndarray, w: int = 560) -> np.ndarray:
@@ -114,7 +114,7 @@ def calibrate(cam1: str, cam2: str, square_mm: float, out: str, target: int = 20
                f"auto {'on' if auto else 'PAUSED'}   Enter solves once pairs >= 8")
         cv2.rectangle(view, (0, 0), (view.shape[1], 30), (0, 0, 0), -1)
         cv2.putText(view, msg, (10, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-        cv2.imshow("stereo-hand calibrate  (left: cam1, right: cam2; green = covered)", view)
+        cv2.imshow("armtrack calibrate  (left: cam1, right: cam2; green = covered)", view)
         if k == ord(" "):
             auto = not auto
         if k == ord("q") or k == 27:
@@ -202,8 +202,8 @@ def track(cam1: str, cam2: str, calib_path: str, udp: str | None = None, hand: s
         v1, v2 = f1.copy(), f2.copy()
         draw_2d(v1, h1)
         draw_2d(v2, h2)
-        cv2.imshow("stereo-hand cameras  (left: cam1, right: cam2)", _side_by_side(v1, v2))
-        cv2.imshow("stereo-hand 3D", view.render(worlds, text))
+        cv2.imshow("armtrack cameras  (left: cam1, right: cam2)", _side_by_side(v1, v2))
+        cv2.imshow("armtrack 3D", view.render(worlds, text))
         arm_view.publish({**arm_state, "status": ("tracking: " + "stereo cameras" + ("" if arm_state["engaged"] else ", press z to engage"))})
         if rec:
             rec[0].write(f1); rec[1].write(f2)
@@ -247,7 +247,7 @@ def track(cam1: str, cam2: str, calib_path: str, udp: str | None = None, hand: s
 def calibrate_lens(cam: str, square_mm: float, out: str, target: int = 25,
                    width: int = 1280, height: int = 720) -> None:
     """One camera's lens alone, for the wand, which needs no second camera."""
-    from .calib import _mono
+    from armtrack.vision.calib import _mono
     src = Source(cam, width, height)
     det = Detector(square_mm)
     samples: list = []
