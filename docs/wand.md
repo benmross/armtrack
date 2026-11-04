@@ -164,6 +164,8 @@ which removes the depth error. The total stays far under $500.
 For a cardboard demo, run `uv run armtrack wand --cam 0 --max-reproj-px 8`.
 The camera window shows detected marker outlines and IDs, the current cube fit
 error and its limit, and whether the pose is fresh, briefly held, or lost.
+The window is mirrored like a selfie camera; `--no-mirror` shows it unflipped.
+Only the preview is flipped: tracking and the arm's directions are unchanged.
 Markers can decode while their combined pose is rejected: the solver assumes
 flat faces at right angles with centred markers. A handmade cube can exceed
 the default 4-pixel limit. Increasing the limit accepts less accurate poses;

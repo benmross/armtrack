@@ -309,7 +309,7 @@ def render_markers(out: str, cube: Cube = Cube(), dpi: int = 300, cut_mm: float 
 def run(cam: str, port: str | None = None, calib: str | None = "calib.json", calib_cam: int = 2,
         hfov: float = 70.0, udp: str | None = None, width: int = 1280, height: int = 720,
         side_mm: float = 60.0, marker_mm: float = 50.0, no_gyro: bool = False,
-        grip_mode: str = "rate", max_reproj_px: float = MAX_REPROJ_PX) -> None:
+        grip_mode: str = "rate", max_reproj_px: float = MAX_REPROJ_PX, mirror: bool = True) -> None:
     import json
     import socket
 
@@ -373,9 +373,13 @@ def run(cam: str, port: str | None = None, calib: str | None = "calib.json", cal
             cv2.drawFrameAxes(vis, K, d, cv2.Rodrigues(got[0])[0], got[1], side_mm)
         diag = tracker.solver.diagnostic
         color = (0, 200, 0) if got else (0, 180, 255)
-        for mid, corners in tracker.solver.seen:
+        for _, corners in tracker.solver.seen:
             cv2.polylines(vis, [np.rint(corners).astype(np.int32)], True, color, 2)
-            cv2.putText(vis, str(mid), tuple(np.rint(corners[0]).astype(int)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+        if mirror:  # a selfie view, so the cube moves the way the hand does; text is drawn after so it reads
+            vis = cv2.flip(vis, 1)
+        for mid, corners in tracker.solver.seen:
+            x, y = np.rint(corners[0]).astype(int)
+            cv2.putText(vis, str(mid), (vis.shape[1] - 1 - x if mirror else x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
         error = diag["reproj_px"]
         fit = "n/a" if error is None else f"{error:.1f}px"
         status = "fresh" if got else ("held" if pose is not None else "lost")
