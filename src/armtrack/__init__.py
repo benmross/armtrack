@@ -52,6 +52,7 @@ def main() -> None:
     ph.add_argument("--port", type=int, default=5006)
     ph.add_argument("--udp", help="also forward the arm's joint angles here, host:port")
     ph.add_argument("--view-port", type=int, default=8765, help="port for the 3-D view in the browser")
+    ph.add_argument("--record", metavar="FILE", help="save every phone packet, with its arrival time, as JSON lines for replay")
 
     ln = sub.add_parser("lens", help="calibrate one camera's lens with the ChArUco board (for the wand)")
     ln.add_argument("--cam", default="0")
@@ -121,7 +122,7 @@ def main() -> None:
         run(a.cam, a.calib, a.calib_cam, a.hfov, a.palm_mm, None if a.udp == "off" else a.udp, a.width, a.height)
     elif a.cmd == "phone":
         from armtrack.tracking.phone import run as run_phone
-        run_phone(a.port, a.udp, a.view_port)
+        run_phone(a.port, a.udp, a.view_port, a.record)
     elif a.cmd == "lens":
         from armtrack.tracking.stereo import calibrate_lens
         calibrate_lens(a.cam, a.square_mm, a.out, width=a.width, height=a.height)

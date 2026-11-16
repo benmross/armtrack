@@ -234,7 +234,7 @@ class PhoneArm:
         return self.arm.update(self.pose if fresh else None, now)
 
 
-def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None:
+def run(port: int = 5006, udp: str | None = None, view_port: int = 8765, record: str | None = None) -> None:
     rx = open_receiver(port)
     rx.settimeout(1 / 120)
     out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) if udp else None
@@ -242,6 +242,9 @@ def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None
     ips = local_addresses()
     print(f"Listening for Arm Pilot on UDP {port}. Type one of these into the app: {', '.join(ips) or '(no network?)'}")
     viewer = Viewer(view_port)
+    rec = open(record, "a", buffering=1) if record else None  # line-buffered: a crash keeps what was said
+    if rec:
+        print(f"Recording phone packets to {record}")
     print("Ctrl-C to stop.")
     pa = PhoneArm()
     link = LinkLog()
@@ -253,6 +256,8 @@ def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None
             try:
                 data, phone_addr = rx.recvfrom(4096)
                 msg = json.loads(data)
+                if rec:
+                    rec.write(json.dumps({"rx": time.time(), "msg": msg}, separators=(",", ":")) + "\n")
                 link.packet(time.time(), msg.get("t"))
                 pa.feed(msg, time.time())
                 n += 1
@@ -302,3 +307,5 @@ def run(port: int = 5006, udp: str | None = None, view_port: int = 8765) -> None
         pass
     finally:
         viewer.close()
+        if rec:
+            rec.close()
